@@ -1,0 +1,3 @@
+[submodule "ai-engineer"]
+	path = ai-engineer
+	url = git@github.com:D3Hunter/ai-engineer.git

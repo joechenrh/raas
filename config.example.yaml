@@ -1,0 +1,69 @@
+# === Debug Mode ===
+# Enable to test with specific PRs instead of scanning all
+debug:
+  enabled: false
+  # Only process these PRs (format: "owner/repo#123")
+  prs:
+    # - "owner/repo#42"
+  # Skip codex invocation, just log what would happen
+  dry_run: false
+  # Run a single scan then stop (no periodic polling)
+  skip_scan_interval: false
+
+server:
+  port: 8080
+
+# GitHub token is read from GITHUB_TOKEN env var
+# Ensure the token has 'repo' scope for private repos
+
+monitor:
+  users:
+    - "example-user"
+  repos:
+    - "owner/repo"
+  scan_interval_seconds: 60
+
+reviewer:
+  # Command to invoke the LLM reviewer
+  command: "codex"
+  args: ["exec", "-a", "full-auto"]
+  max_concurrent: 1
+  timeout_seconds: 600
+
+  # Prompt template for initial PR review
+  # Available variables: {repo}, {number}, {title}, {author}
+  # The codex agent runs inside the local repo checkout with the PR branch checked out
+  review_prompt: |
+    You are reviewing Pull Request #{number} in the repository {repo}.
+    PR Title: {title}
+    PR Author: {author}
+
+    You are currently in the local checkout of this repo with the PR branch checked out.
+    You have full access to read all source files in this repository for context.
+
+    Steps:
+    1. Run `gh pr diff {number} -R {repo}` to see the exact changes
+    2. Read the changed files in full to understand the surrounding context
+    3. Analyze the changes carefully with deep thinking
+    4. For each issue found, post a review comment using:
+       gh pr review {number} -R {repo} --comment --body "Your detailed review"
+    5. For specific line issues, use inline review comments via `gh api`
+    6. If no significant issues, approve the PR
+
+    Focus on: bugs, security issues, performance problems, code quality.
+    Be constructive and specific. Read related files to understand the full context.
+
+  # Prompt template for follow-up review after author replies
+  followup_prompt: |
+    You are following up on your code review for PR #{number} in repository {repo}.
+
+    You are currently in the local checkout of this repo with the PR branch checked out.
+    You have full access to read all source files for context.
+
+    Steps:
+    1. Use `gh api repos/{repo}/pulls/{number}/comments` to fetch review comments
+    2. Find threads where the PR author replied to your review
+    3. Read the relevant source files for context if needed
+    4. For each reply:
+       a. If the concern is adequately addressed, resolve the review thread
+       b. If not, post a follow-up comment explaining what still needs work
