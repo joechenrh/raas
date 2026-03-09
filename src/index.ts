@@ -34,7 +34,7 @@ async function main() {
   }
 
   const app = new Hono();
-  registerDashboard(app, database);
+  registerDashboard(app, database, config);
 
   const scannerInterval = startScanner(config, database, github);
 
@@ -49,7 +49,7 @@ async function main() {
 
   console.log(`Server listening on http://0.0.0.0:${config.server.port}`);
   serve({
-    fetch: app.fetch,
+    fetch: app.fetch.bind(app),
     port: config.server.port,
     hostname: '0.0.0.0',
   });

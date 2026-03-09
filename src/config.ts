@@ -19,6 +19,7 @@ export interface Config {
     users: string[];
     repos: string[];
     scan_interval_seconds: number;
+    ignore_before?: string;  // ISO date string — skip PRs created before this time
   };
   reviewer: {
     command: string;
@@ -109,6 +110,7 @@ export function loadConfig(configPath?: string): Config {
       users: parsed.monitor?.users || [],
       repos: parsed.monitor?.repos || [],
       scan_interval_seconds: parsed.monitor?.scan_interval_seconds || 60,
+      ignore_before: parsed.monitor?.ignore_before || new Date().toISOString(),
     },
     reviewer: {
       command: parsed.reviewer?.command || 'codex',

@@ -57,6 +57,21 @@ export async function scan(config: Config, database: Database.Database, github: 
             continue;
           }
 
+          // Skip PRs created before the configured cutoff time
+          if (config.monitor.ignore_before && pr.created_at < config.monitor.ignore_before) {
+            continue;
+          }
+
+          // Skip PRs not targeting master/main
+          if (pr.base_branch !== 'master' && pr.base_branch !== 'main') {
+            continue;
+          }
+
+          // Skip PRs with [DNM] prefix in title
+          if (pr.title.startsWith('[DNM]')) {
+            continue;
+          }
+
           // Normal mode: filter by configured users (if any configured)
           if (!config.debug.enabled && monitoredUsers.size > 0 && !monitoredUsers.has(pr.author.toLowerCase())) {
             continue;

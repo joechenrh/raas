@@ -5,6 +5,7 @@ export interface GitHubPR {
   title: string;
   author: string;
   head_sha: string;
+  base_branch: string;
   state: string;
   created_at: string;
   updated_at: string;
@@ -49,6 +50,7 @@ export class GitHubClient {
       title: pr.title,
       author: pr.user?.login || 'unknown',
       head_sha: pr.head.sha,
+      base_branch: pr.base.ref,
       state: pr.state,
       created_at: pr.created_at,
       updated_at: pr.updated_at,

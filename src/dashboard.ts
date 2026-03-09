@@ -1,8 +1,9 @@
 import type { Hono } from 'hono';
 import type Database from 'better-sqlite3';
+import type { Config } from './config.js';
 import * as db from './db.js';
 
-export function registerDashboard(app: Hono, database: Database.Database) {
+export function registerDashboard(app: Hono, database: Database.Database, config: Config) {
   // JSON API
   app.get('/api/prs', (c) => c.json(db.getAllPRs(database)));
   app.get('/api/stats', (c) => c.json(db.getStats(database)));
@@ -12,6 +13,10 @@ export function registerDashboard(app: Hono, database: Database.Database) {
     return c.json(db.getReviewRuns(database, id));
   });
   app.get('/api/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }));
+  app.get('/api/config', (c) => c.json({
+    users: config.monitor.users,
+    repos: config.monitor.repos,
+  }));
 
   // Dashboard SPA
   app.get('/', (c) => c.html(DASHBOARD_HTML));
@@ -81,6 +86,14 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       box-shadow: 0 0 6px var(--accent-green);
     }
     .live-label { font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+    .config-info { display: flex; align-items: center; gap: 16px; }
+    .config-tag {
+      font-size: 11px; padding: 3px 10px; border-radius: 16px;
+      background: var(--bg-tertiary); color: var(--text-muted);
+      border: 1px solid var(--border); font-family: monospace;
+    }
+    .config-tag .config-label { color: var(--text-muted); margin-right: 4px; }
+    .config-tag .config-value { color: var(--accent-blue); }
     @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.3; } }
 
     /* Layout */
@@ -264,6 +277,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       <h1>RaaS <span>Review as a Service</span></h1>
     </div>
     <div class="header-right">
+      <div class="config-info" id="config-info"></div>
       <div class="live-label"><span class="live-dot"></span> Live</div>
     </div>
   </div>
@@ -435,6 +449,22 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       btn.innerHTML = hidden ? '&#9654;' : '&#9660;';
       if (!hidden) loadRuns(id);
     });
+
+    async function loadConfig() {
+      try {
+        const cfg = await fetch('/api/config').then(r => r.json());
+        const el = document.getElementById('config-info');
+        let html = '';
+        if (cfg.users.length) {
+          html += '<span class="config-tag"><span class="config-label">Users:</span><span class="config-value">' + cfg.users.map(esc).join(', ') + '</span></span>';
+        }
+        if (cfg.repos.length) {
+          html += '<span class="config-tag"><span class="config-label">Repos:</span><span class="config-value">' + cfg.repos.map(esc).join(', ') + '</span></span>';
+        }
+        el.innerHTML = html;
+      } catch {}
+    }
+    loadConfig();
 
     let refreshTimer;
     async function refresh() {
