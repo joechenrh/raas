@@ -189,6 +189,13 @@ export function getReviewRuns(db: Database.Database, prId: number): ReviewRun[] 
   return db.prepare('SELECT * FROM review_runs WHERE pr_id = ? ORDER BY id DESC').all(prId) as ReviewRun[];
 }
 
+export function hasPrimaryReviewRun(db: Database.Database, prId: number): boolean {
+  const row = db.prepare(
+    "SELECT 1 as found FROM review_runs WHERE pr_id = ? AND type IN ('initial', 'recheck') LIMIT 1",
+  ).get(prId) as { found: number } | undefined;
+  return Boolean(row?.found);
+}
+
 export function getPendingReviewRuns(
   db: Database.Database,
 ): (ReviewRun & { repo: string; pr_number: number; title: string; pr_author: string; pr_head_sha: string })[] {

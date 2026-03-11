@@ -1,13 +1,22 @@
+import path from 'node:path';
 import type Database from 'better-sqlite3';
 import type { Config } from './config.js';
-import type { GitHubClient } from './github.js';
+import type { GitHubClient, PRStatusCheck } from './github.js';
 import { runCodexReview } from './reviewer.js';
 import * as db from './db.js';
 
 let activeReviews = 0;
 let isScanning = false;
+let isProcessingQueue = false;
 const failureCount = new Map<string, number>();  // repo#number -> consecutive failures
 const MAX_RETRIES_PER_SCAN = 3;
+const TIDB_REPO = 'pingcap/tidb';
+const TIDB_BUILD_CHECK = 'idc-jenkins-ci-tidb/build';
+const TIDB_CHECK_DEV_CHECK = 'idc-jenkins-ci-tidb/check_dev';
+const TIDB_UNIT_TEST_CHECKS = [
+  'idc-jenkins-ci-tidb/unit-test',
+  'pull-unit-test-next-gen',
+];
 
 function log(msg: string, data?: Record<string, unknown>) {
   const ts = new Date().toISOString();
@@ -21,6 +30,51 @@ function log(msg: string, data?: Record<string, unknown>) {
 function parseRepo(fullName: string): { owner: string; repo: string } {
   const [owner, repo] = fullName.split('/');
   return { owner, repo };
+}
+
+function isTidbRepo(fullName: string): boolean {
+  return fullName.toLowerCase() === TIDB_REPO;
+}
+
+function isSuccessState(state: string | undefined): boolean {
+  return (state || '').toUpperCase() === 'SUCCESS';
+}
+
+function getCheckState(checks: PRStatusCheck[], name: string): string {
+  const check = checks.find((item) => item.name === name);
+  return (check?.state || 'MISSING').toUpperCase();
+}
+
+async function getTidbReviewGate(
+  github: GitHubClient,
+  owner: string,
+  repo: string,
+  number: number,
+): Promise<{ allowed: boolean; reason: string }> {
+  const checks = await github.getPRStatusChecks(owner, repo, number);
+  if (checks.length === 0) {
+    return { allowed: false, reason: 'waiting for CI status data' };
+  }
+
+  const buildState = getCheckState(checks, TIDB_BUILD_CHECK);
+  const checkDevState = getCheckState(checks, TIDB_CHECK_DEV_CHECK);
+  const unitStates = TIDB_UNIT_TEST_CHECKS.map((name) => `${name}=${getCheckState(checks, name)}`);
+  const unitSucceeded = TIDB_UNIT_TEST_CHECKS.some((name) => isSuccessState(getCheckState(checks, name)));
+
+  if (!isSuccessState(buildState)) {
+    return { allowed: false, reason: `${TIDB_BUILD_CHECK}=${buildState}` };
+  }
+  if (!isSuccessState(checkDevState)) {
+    return { allowed: false, reason: `${TIDB_CHECK_DEV_CHECK}=${checkDevState}` };
+  }
+  if (!unitSucceeded) {
+    return { allowed: false, reason: `unit-test gate unmet (${unitStates.join(', ')})` };
+  }
+
+  return {
+    allowed: true,
+    reason: `gate passed (${TIDB_BUILD_CHECK}=${buildState}, ${TIDB_CHECK_DEV_CHECK}=${checkDevState}, ${unitStates.join(', ')})`,
+  };
 }
 
 export async function scan(config: Config, database: Database.Database, github: GitHubClient) {
@@ -90,9 +144,22 @@ export async function scan(config: Config, database: Database.Database, github: 
               head_sha: pr.head_sha,
               state: pr.state,
             });
-            db.createReviewRun(database, inserted.id, 'initial', 'New PR detected');
-            reviewsTriggered++;
-            log(`New PR: ${repoFullName}#${pr.number} "${pr.title}" by ${pr.author}`);
+            if (isTidbRepo(repoFullName)) {
+              const gate = await getTidbReviewGate(github, owner, repo, pr.number);
+              if (gate.allowed) {
+                db.updatePRStatus(database, inserted.id, 'pending');
+                db.createReviewRun(database, inserted.id, 'initial', `TiDB CI gate passed: ${gate.reason}`);
+                reviewsTriggered++;
+                log(`New TiDB PR ready for review: ${repoFullName}#${pr.number}`, { gate: gate.reason });
+              } else {
+                db.updatePRStatus(database, inserted.id, 'waiting-ci');
+                log(`New TiDB PR waiting for CI gate: ${repoFullName}#${pr.number}`, { gate: gate.reason });
+              }
+            } else {
+              db.createReviewRun(database, inserted.id, 'initial', 'New PR detected');
+              reviewsTriggered++;
+              log(`New PR: ${repoFullName}#${pr.number} "${pr.title}" by ${pr.author}`);
+            }
           } else if (existing.head_sha !== pr.head_sha) {
             // New commits pushed
             db.upsertPR(database, {
@@ -103,13 +170,42 @@ export async function scan(config: Config, database: Database.Database, github: 
               head_sha: pr.head_sha,
               state: pr.state,
             });
-            if (existing.review_status !== 'reviewing') {
+            if (isTidbRepo(repoFullName)) {
+              if (db.hasPrimaryReviewRun(database, existing.id)) {
+                log(`Skipping retrigger for TiDB PR after new commits: ${repoFullName}#${pr.number}`);
+              } else {
+                const gate = await getTidbReviewGate(github, owner, repo, pr.number);
+                if (gate.allowed) {
+                  db.updatePRStatus(database, existing.id, 'pending');
+                  db.createReviewRun(database, existing.id, 'initial', `TiDB CI gate passed after new commits: ${gate.reason}`);
+                  reviewsTriggered++;
+                  log(`TiDB PR passed CI gate after new commits: ${repoFullName}#${pr.number}`, { gate: gate.reason });
+                } else {
+                  db.updatePRStatus(database, existing.id, 'waiting-ci');
+                  log(`TiDB PR still waiting for CI gate after new commits: ${repoFullName}#${pr.number}`, { gate: gate.reason });
+                }
+              }
+            } else if (existing.review_status !== 'reviewing') {
               db.updatePRStatus(database, existing.id, 'pending');
               db.createReviewRun(database, existing.id, 'recheck', 'New commits pushed');
               reviewsTriggered++;
               log(`New commits on: ${repoFullName}#${pr.number}`);
             }
+          } else if (isTidbRepo(repoFullName) && existing.review_status === 'waiting-ci') {
+            const gate = await getTidbReviewGate(github, owner, repo, pr.number);
+            if (gate.allowed) {
+              db.updatePRStatus(database, existing.id, 'pending');
+              db.createReviewRun(database, existing.id, 'initial', `TiDB CI gate passed: ${gate.reason}`);
+              reviewsTriggered++;
+              log(`TiDB PR passed CI gate: ${repoFullName}#${pr.number}`, { gate: gate.reason });
+            } else {
+              log(`TiDB PR still waiting for CI gate: ${repoFullName}#${pr.number}`, { gate: gate.reason });
+            }
           } else if (existing.review_status === 'failed' || existing.review_status === 'pending') {
+            if (isTidbRepo(repoFullName) && db.hasPrimaryReviewRun(database, existing.id)) {
+              log(`Skipping retry for TiDB PR: ${repoFullName}#${pr.number} (one-shot review policy)`);
+              continue;
+            }
             // Retry failed/pending reviews with exponential backoff
             const key = `${repoFullName}#${pr.number}`;
             const failures = failureCount.get(key) || 0;
@@ -193,88 +289,107 @@ export async function scan(config: Config, database: Database.Database, github: 
   }
 }
 
-async function processReviewQueue(config: Config, database: Database.Database, github: GitHubClient) {
-  const pendingRuns = db.getPendingReviewRuns(database);
+export async function processReviewQueue(config: Config, database: Database.Database, github: GitHubClient) {
+  if (isProcessingQueue) {
+    return;
+  }
+  isProcessingQueue = true;
 
-  for (const run of pendingRuns) {
-    if (activeReviews >= config.reviewer.max_concurrent) {
-      log(`Concurrency limit reached (${activeReviews}/${config.reviewer.max_concurrent}), remaining queued`);
-      break;
-    }
+  try {
+    while (true) {
+      if (activeReviews >= config.reviewer.max_concurrent) {
+        log(`Concurrency limit reached (${activeReviews}/${config.reviewer.max_concurrent}), remaining queued`);
+        break;
+      }
+      const [run] = db.getPendingReviewRuns(database);
+      if (!run) {
+        break;
+      }
 
-    activeReviews++;
-    const startedAt = new Date().toISOString();
-    db.updateReviewRun(database, run.id, { status: 'running', started_at: startedAt });
-    db.updatePRStatus(database, run.pr_id, 'reviewing');
+      activeReviews++;
+      const startedAt = new Date().toISOString();
+      db.updateReviewRun(database, run.id, { status: 'running', started_at: startedAt });
+      db.updatePRStatus(database, run.pr_id, 'reviewing');
 
-    log(`Starting ${run.type} review: ${run.repo}#${run.pr_number}`);
+      log(`Starting ${run.type} review: ${run.repo}#${run.pr_number}`);
 
-    // Dry-run mode: skip codex invocation
-    if (config.debug.dry_run) {
-      log(`DRY RUN: would invoke codex for ${run.repo}#${run.pr_number} (${run.type})`);
-      db.updateReviewRun(database, run.id, {
-        status: 'completed',
-        completed_at: new Date().toISOString(),
-        duration_ms: 0,
-        exit_code: 0,
-      });
-      db.updatePRStatus(database, run.pr_id, 'reviewed');
-      activeReviews--;
-      continue;
-    }
+      // Dry-run mode: skip codex invocation
+      if (config.debug.dry_run) {
+        log(`DRY RUN: would invoke codex for ${run.repo}#${run.pr_number} (${run.type})`);
+        db.updateReviewRun(database, run.id, {
+          status: 'completed',
+          completed_at: new Date().toISOString(),
+          duration_ms: 0,
+          exit_code: 0,
+        });
+        db.updatePRStatus(database, run.pr_id, 'reviewed');
+        activeReviews--;
+        continue;
+      }
 
-    // Run review synchronously — block scan until review completes
-    try {
-      const result = await runCodexReview(config, run.type as 'initial' | 'followup' | 'recheck', {
-        repo: run.repo,
-        number: run.pr_number,
-        title: run.title,
-        author: run.pr_author,
-      });
-
-      const completedAt = new Date().toISOString();
-      const status = result.exitCode === 0 ? 'completed' : 'failed';
-
-      db.updateReviewRun(database, run.id, {
-        status,
-        completed_at: completedAt,
-        duration_ms: result.durationMs,
-        exit_code: result.exitCode,
-        error: status === 'failed' ? `See log: ${result.logFile}` : undefined,
-      });
-      db.updatePRStatus(database, run.pr_id, status === 'completed' ? 'reviewed' : 'failed');
-
-      // Sync comment counts after review completes
+      // Run review synchronously — block scan until review completes
       try {
-        const { owner, repo } = parseRepo(run.repo);
-        const { totalComments, unresolvedCount } = await github.getReviewThreads(owner, repo, run.pr_number);
-        db.updatePRCommentCounts(database, run.pr_id, totalComments, unresolvedCount);
-      } catch {
-        // ignore
-      }
+        const result = await runCodexReview(config, run.type as 'initial' | 'followup' | 'recheck', {
+          repo: run.repo,
+          number: run.pr_number,
+          title: run.title,
+          author: run.pr_author,
+        });
 
-      const key = `${run.repo}#${run.pr_number}`;
-      if (status === 'completed') {
-        failureCount.delete(key);
-      } else {
+        const completedAt = new Date().toISOString();
+        const orchestrationSucceeded = result.executionStatus
+          ? result.executionStatus === 'success'
+          : true;
+        const status = result.exitCode === 0 && orchestrationSucceeded ? 'completed' : 'failed';
+        const failureDetail = result.executionStatus && result.executionStatus !== 'success'
+          ? `Orchestration ${result.executionStatus}${result.executionReason ? `: ${result.executionReason}` : ''}`
+          : undefined;
+
+        db.updateReviewRun(database, run.id, {
+          status,
+          completed_at: completedAt,
+          duration_ms: result.durationMs,
+          exit_code: result.exitCode,
+          error: status === 'failed'
+            ? `${failureDetail ? `${failureDetail}. ` : ''}See log: ${path.basename(result.logFile)}`
+            : undefined,
+        });
+        db.updatePRStatus(database, run.pr_id, status === 'completed' ? 'reviewed' : 'failed');
+
+        // Sync comment counts after review completes
+        try {
+          const { owner, repo } = parseRepo(run.repo);
+          const { totalComments, unresolvedCount } = await github.getReviewThreads(owner, repo, run.pr_number);
+          db.updatePRCommentCounts(database, run.pr_id, totalComments, unresolvedCount);
+        } catch {
+          // ignore
+        }
+
+        const key = `${run.repo}#${run.pr_number}`;
+        if (status === 'completed') {
+          failureCount.delete(key);
+        } else {
+          failureCount.set(key, (failureCount.get(key) || 0) + 1);
+        }
+
+        log(`Review ${status}: ${run.repo}#${run.pr_number} (${result.durationMs}ms, exit ${result.exitCode})`);
+        log(`Log file: ${result.logFile}`);
+      } catch (err: any) {
+        db.updateReviewRun(database, run.id, {
+          status: 'failed',
+          completed_at: new Date().toISOString(),
+          error: err.message,
+        });
+        db.updatePRStatus(database, run.pr_id, 'failed');
+        const key = `${run.repo}#${run.pr_number}`;
         failureCount.set(key, (failureCount.get(key) || 0) + 1);
+        log(`Review error: ${run.repo}#${run.pr_number}: ${err.message}`);
+      } finally {
+        activeReviews--;
       }
-
-      log(`Review ${status}: ${run.repo}#${run.pr_number} (${result.durationMs}ms, exit ${result.exitCode})`);
-      log(`Log file: ${result.logFile}`);
-    } catch (err: any) {
-      db.updateReviewRun(database, run.id, {
-        status: 'failed',
-        completed_at: new Date().toISOString(),
-        error: err.message,
-      });
-      db.updatePRStatus(database, run.pr_id, 'failed');
-      const key = `${run.repo}#${run.pr_number}`;
-      failureCount.set(key, (failureCount.get(key) || 0) + 1);
-      log(`Review error: ${run.repo}#${run.pr_number}: ${err.message}`);
-    } finally {
-      activeReviews--;
     }
+  } finally {
+    isProcessingQueue = false;
   }
 }
 

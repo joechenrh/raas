@@ -37,28 +37,40 @@ export interface Config {
   };
 }
 
-const DEFAULT_REVIEW_PROMPT = `You are reviewing Pull Request #{number} in the repository {repo}.
-PR Title: {title}
-PR Author: {author}
+function normalizeStringList(value: unknown, fieldName: string): string[] {
+  if (value == null) {
+    return [];
+  }
 
-You are currently in the local checkout of this repo with the PR branch checked out.
-You have full access to read all source files in this repository for context.
+  const flattened = (Array.isArray(value) ? value.flat(Infinity) : [value]) as unknown[];
 
-Steps:
-1. Run \`gh pr diff {number} -R {repo}\` to see the exact changes
-2. Read the changed files in full to understand the surrounding context
-3. Analyze the changes carefully with deep thinking
-4. For each issue found, post a review comment using:
-   gh pr review {number} -R {repo} --comment --body "Your detailed review"
-5. For specific line issues, use inline review comments via \`gh api\`
-6. If no significant issues, approve the PR
+  return flattened.map((entry, index) => {
+    if (typeof entry !== 'string') {
+      throw new Error(`Invalid ${fieldName}[${index}]: expected a string, got ${typeof entry}.`);
+    }
+    return entry.trim();
+  }).filter((entry) => entry.length > 0);
+}
 
-Focus on: bugs, security issues, performance problems, code quality.
-Be constructive and specific. Read related files to understand the full context.`;
+const DEFAULT_REVIEW_PROMPT = `Invoke skill \`orchestrate-github-pr-review\` directly.
+
+Inputs:
+- \`pr_link={pr_link}\`
+- \`project_path={project_path}\`
+
+Requirements:
+1. Follow the repository-local \`AGENTS.md\` skill registration.
+2. Do not reimplement the workflow manually.
+3. Do not use a non-skill fallback review flow.
+4. Return the orchestration status JSON after the skill finishes.
+5. If the review finds nothing actionable, still submit one comment-only review summary and never approve.
+6. When using child \`codex exec\` reviewers, keep the child working directory at this repository root so \`AGENTS.md\` and skill files remain visible; grant \`project_path\` or the prepared worktree via additional writable scope instead of switching child cwd there.`;
 
 const DEFAULT_FOLLOWUP_PROMPT = `You are following up on your code review for PR #{number} in repository {repo}.
 
-You are currently in the local checkout of this repo with the PR branch checked out.
+The local repository checkout is at:
+- \`project_path={project_path}\`
+
 You have full access to read all source files for context.
 
 Steps:
@@ -107,8 +119,8 @@ export function loadConfig(configPath?: string): Config {
       token,
     },
     monitor: {
-      users: parsed.monitor?.users || [],
-      repos: parsed.monitor?.repos || [],
+      users: normalizeStringList(parsed.monitor?.users, 'monitor.users'),
+      repos: normalizeStringList(parsed.monitor?.repos, 'monitor.repos'),
       scan_interval_seconds: parsed.monitor?.scan_interval_seconds || 60,
       ignore_before: parsed.monitor?.ignore_before || new Date().toISOString(),
     },

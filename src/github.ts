@@ -21,6 +21,12 @@ export interface ReviewThread {
   }[];
 }
 
+export interface PRStatusCheck {
+  name: string;
+  state: string;
+  detailsUrl: string | null;
+}
+
 export class GitHubClient {
   private octokit: Octokit;
   private _botUser: string | null = null;
@@ -60,6 +66,67 @@ export class GitHubClient {
   async getPRState(owner: string, repo: string, number: number): Promise<{ state: string; merged: boolean }> {
     const { data } = await this.octokit.pulls.get({ owner, repo, pull_number: number });
     return { state: data.state, merged: data.merged };
+  }
+
+  async getPRStatusChecks(owner: string, repo: string, number: number): Promise<PRStatusCheck[]> {
+    try {
+      const response: any = await this.octokit.graphql(
+        `
+        query($owner: String!, $repo: String!, $number: Int!) {
+          repository(owner: $owner, name: $repo) {
+            pullRequest(number: $number) {
+              statusCheckRollup(first: 100) {
+                nodes {
+                  __typename
+                  ... on CheckRun {
+                    name
+                    status
+                    conclusion
+                    detailsUrl
+                  }
+                  ... on StatusContext {
+                    context
+                    state
+                    targetUrl
+                  }
+                }
+              }
+            }
+          }
+        }
+      `,
+        { owner, repo, number },
+      );
+
+      const nodes = response.repository.pullRequest.statusCheckRollup.nodes || [];
+      return nodes.flatMap((node: any) => {
+        if (!node?.__typename) {
+          return [];
+        }
+
+        if (node.__typename === 'CheckRun') {
+          const state = node.status === 'COMPLETED' ? (node.conclusion || 'FAILURE') : 'PENDING';
+          return [{
+            name: node.name,
+            state,
+            detailsUrl: node.detailsUrl || null,
+          }];
+        }
+
+        if (node.__typename === 'StatusContext') {
+          return [{
+            name: node.context,
+            state: node.state,
+            detailsUrl: node.targetUrl || null,
+          }];
+        }
+
+        return [];
+      });
+    } catch (err) {
+      console.error('[github] statusCheckRollup query failed:', err);
+      return [];
+    }
   }
 
   async getReviewThreads(

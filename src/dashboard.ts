@@ -1,16 +1,82 @@
 import type { Hono } from 'hono';
 import type Database from 'better-sqlite3';
 import type { Config } from './config.js';
+import type { GitHubClient } from './github.js';
 import * as db from './db.js';
+import { processReviewQueue } from './scanner.js';
 
-export function registerDashboard(app: Hono, database: Database.Database, config: Config) {
+function getManualTriggerState(database: Database.Database, pr: db.PR): { available: boolean; reason: string } {
+  if (pr.repo !== 'pingcap/tidb') {
+    return { available: false, reason: 'Only available for pingcap/tidb.' };
+  }
+  if (pr.state !== 'open') {
+    return { available: false, reason: `PR is ${pr.state}.` };
+  }
+  if (db.hasPrimaryReviewRun(database, pr.id)) {
+    return { available: false, reason: 'Primary review has already been triggered once.' };
+  }
+  if (pr.review_status === 'reviewing') {
+    return { available: false, reason: 'Review is already running.' };
+  }
+  if (pr.review_status === 'pending') {
+    return { available: false, reason: 'Review is already queued.' };
+  }
+  return { available: true, reason: 'Skip CI gate and trigger one review now.' };
+}
+
+function serializePR(database: Database.Database, pr: db.PR) {
+  const manualTrigger = getManualTriggerState(database, pr);
+  return {
+    ...pr,
+    manual_trigger_available: manualTrigger.available,
+    manual_trigger_reason: manualTrigger.reason,
+  };
+}
+
+export function registerDashboard(
+  app: Hono,
+  database: Database.Database,
+  config: Config,
+  github: GitHubClient,
+) {
   // JSON API
-  app.get('/api/prs', (c) => c.json(db.getAllPRs(database)));
+  app.get('/api/prs', (c) => c.json(db.getAllPRs(database).map((pr) => serializePR(database, pr))));
   app.get('/api/stats', (c) => c.json(db.getStats(database)));
   app.get('/api/logs', (c) => c.json(db.getRecentScanLogs(database)));
   app.get('/api/prs/:id/runs', (c) => {
     const id = Number(c.req.param('id'));
     return c.json(db.getReviewRuns(database, id));
+  });
+  app.post('/api/prs/:id/manual-trigger', async (c) => {
+    const id = Number(c.req.param('id'));
+    const pr = db.getAllPRs(database).find((item) => item.id === id);
+    if (!pr) {
+      return c.json({ ok: false, error: 'PR not found.' }, 404);
+    }
+
+    const manualTrigger = getManualTriggerState(database, pr);
+    if (!manualTrigger.available) {
+      return c.json({
+        ok: false,
+        error: manualTrigger.reason,
+        pr: serializePR(database, pr),
+      }, 409);
+    }
+
+    db.updatePRStatus(database, pr.id, 'pending');
+    const runId = db.createReviewRun(database, pr.id, 'initial', 'Manual override: skip TiDB CI gate from dashboard');
+
+    void processReviewQueue(config, database, github).catch((err) => {
+      console.error('[dashboard] manual trigger queue processing failed:', err);
+    });
+
+    const refreshed = db.getPR(database, pr.repo, pr.number);
+    return c.json({
+      ok: true,
+      message: 'Manual review trigger queued.',
+      run_id: runId,
+      pr: refreshed ? serializePR(database, refreshed) : null,
+    });
   });
   app.get('/api/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }));
   app.get('/api/config', (c) => c.json({
@@ -91,9 +157,23 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       font-size: 11px; padding: 3px 10px; border-radius: 16px;
       background: var(--bg-tertiary); color: var(--text-muted);
       border: 1px solid var(--border); font-family: monospace;
+      position: relative; cursor: default;
     }
     .config-tag .config-label { color: var(--text-muted); margin-right: 4px; }
     .config-tag .config-value { color: var(--accent-blue); }
+    .config-tag .config-popover {
+      display: none; position: absolute; top: calc(100% + 8px); right: 0;
+      background: var(--bg-secondary); border: 1px solid var(--border);
+      border-radius: 8px; padding: 12px; min-width: 180px; max-width: 320px;
+      max-height: 300px; overflow-y: auto; z-index: 100;
+      box-shadow: 0 4px 16px rgba(0,0,0,.4); font-size: 12px;
+    }
+    .config-tag:hover .config-popover { display: block; }
+    .config-popover-list { display: flex; flex-wrap: wrap; gap: 4px; }
+    .config-popover-item {
+      padding: 2px 8px; border-radius: 4px; background: var(--bg-tertiary);
+      color: var(--accent-blue); white-space: nowrap;
+    }
     @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.3; } }
 
     /* Layout */
@@ -203,7 +283,36 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     .badge-reviewed .badge-dot { background: var(--accent-green); }
     .badge-failed { background: rgba(248,81,73,.15); color: var(--accent-red); }
     .badge-failed .badge-dot { background: var(--accent-red); }
+    .badge-waiting-ci { background: rgba(210,153,34,.15); color: var(--accent-yellow); }
+    .badge-waiting-ci .badge-dot { background: var(--accent-yellow); }
     .badge-ok { background: rgba(63,185,80,.15); color: var(--accent-green); }
+
+    /* Actions */
+    .actions-cell { display: flex; justify-content: flex-end; }
+    .action-btn {
+      border: 1px solid var(--border);
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: border-color .15s, background .15s, transform .15s;
+      white-space: nowrap;
+    }
+    .action-btn:hover {
+      border-color: var(--accent-blue);
+      background: rgba(88,166,255,.12);
+      transform: translateY(-1px);
+    }
+    .action-btn:disabled {
+      cursor: not-allowed;
+      opacity: .45;
+      transform: none;
+      border-color: var(--border);
+      background: var(--bg-tertiary);
+      color: var(--text-muted);
+    }
 
     /* Comments */
     .comments-cell { display: flex; gap: 12px; font-size: 12px; }
@@ -306,6 +415,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
               <th>Review</th>
               <th>Comments</th>
               <th>Last Review</th>
+              <th style="width:160px;text-align:right">Action</th>
             </tr>
           </thead>
           <tbody id="pr-body"></tbody>
@@ -378,12 +488,17 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       document.getElementById('pr-count').textContent = prs.length;
       if (!prs.length) {
         document.getElementById('pr-body').innerHTML =
-          '<tr><td colspan="8"><div class="empty-state"><div class="icon">&#128269;</div>No pull requests yet</div></td></tr>';
+          '<tr><td colspan="9"><div class="empty-state"><div class="icon">&#128269;</div>No pull requests yet</div></td></tr>';
         return;
       }
       let html = '';
       for (const pr of prs) {
         const resolved = pr.comment_count - pr.unresolved_count;
+        const manualTitle = esc(pr.manual_trigger_reason || '');
+        const manualDisabled = pr.manual_trigger_available ? '' : ' disabled';
+        const manualButton = pr.repo === 'pingcap/tidb'
+          ? '<button class="action-btn manual-trigger-btn" data-id="' + pr.id + '" title="' + manualTitle + '"' + manualDisabled + '>Trigger Review</button>'
+          : '<span class="time-ago">-</span>';
         html += '<tr>' +
           '<td><button class="expand-btn" data-id="' + pr.id + '" title="Show review runs">&#9654;</button></td>' +
           '<td><span class="pr-repo">' + esc(pr.repo) + '</span><br>' +
@@ -397,8 +512,9 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
             '<span class="c-unresolved">' + pr.unresolved_count + ' open</span>' +
           '</div></td>' +
           '<td><span class="time-ago">' + timeAgo(pr.last_reviewed_at) + '</span></td>' +
+          '<td><div class="actions-cell">' + manualButton + '</div></td>' +
         '</tr>' +
-        '<tr class="runs-row hidden" id="runs-' + pr.id + '"><td colspan="8"><div class="runs-container"><h4>Review Runs</h4><div class="runs-list">Loading...</div></div></td></tr>';
+        '<tr class="runs-row hidden" id="runs-' + pr.id + '"><td colspan="9"><div class="runs-container"><h4>Review Runs</h4><div class="runs-list">Loading...</div></div></td></tr>';
       }
       document.getElementById('pr-body').innerHTML = html;
     }
@@ -450,13 +566,38 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       if (!hidden) loadRuns(id);
     });
 
+    document.addEventListener('click', async e => {
+      const btn = e.target.closest('.manual-trigger-btn');
+      if (!btn || btn.disabled) return;
+      const id = btn.dataset.id;
+      btn.disabled = true;
+      const original = btn.textContent;
+      btn.textContent = 'Queueing...';
+      try {
+        const res = await fetch('/api/prs/' + id + '/manual-trigger', { method: 'POST' });
+        const payload = await res.json();
+        if (!res.ok || !payload.ok) {
+          throw new Error(payload.error || 'Manual trigger failed.');
+        }
+        showToast(payload.message || 'Manual review trigger queued.');
+        refreshNow();
+      } catch (err) {
+        showToast(err.message || 'Manual review trigger failed.', true);
+      } finally {
+        btn.textContent = original;
+        btn.disabled = false;
+      }
+    });
+
     async function loadConfig() {
       try {
         const cfg = await fetch('/api/config').then(r => r.json());
         const el = document.getElementById('config-info');
         let html = '';
         if (cfg.users.length) {
-          html += '<span class="config-tag"><span class="config-label">Users:</span><span class="config-value">' + cfg.users.map(esc).join(', ') + '</span></span>';
+          const count = cfg.users.length;
+          const popover = '<div class="config-popover"><div class="config-popover-list">' + cfg.users.map(u => '<span class="config-popover-item">' + esc(u) + '</span>').join('') + '</div></div>';
+          html += '<span class="config-tag"><span class="config-label">Users:</span><span class="config-value">' + count + '</span>' + popover + '</span>';
         }
         if (cfg.repos.length) {
           html += '<span class="config-tag"><span class="config-label">Repos:</span><span class="config-value">' + cfg.repos.map(esc).join(', ') + '</span></span>';
@@ -482,11 +623,22 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       refreshTimer = setTimeout(refresh, 15000);
     }
 
-    function flash() {
+    function showToast(message, isError) {
       const t = document.getElementById('toast');
-      t.textContent = 'Updated ' + new Date().toLocaleTimeString();
+      t.textContent = message;
+      t.style.borderColor = isError ? 'var(--accent-red)' : 'var(--border)';
+      t.style.color = isError ? 'var(--accent-red)' : 'var(--text-muted)';
       t.classList.add('show');
       setTimeout(() => t.classList.remove('show'), 1500);
+    }
+
+    function flash() {
+      showToast('Updated ' + new Date().toLocaleTimeString(), false);
+    }
+
+    function refreshNow() {
+      clearTimeout(refreshTimer);
+      refresh();
     }
 
     refresh();

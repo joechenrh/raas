@@ -59,7 +59,8 @@ export async function initRepos(repos: string[], _token: string): Promise<void> 
         }
 
         const defaultBranch = await getDefaultBranch(dir);
-        await run('git', ['checkout', defaultBranch], dir);
+        await run('git', ['checkout', '-f', defaultBranch], dir);
+        await run('git', ['clean', '-fd'], dir);
         await run('git', ['fetch', '--all', '--prune'], dir, 300_000);
         await run('git', ['pull', '--ff-only'], dir).catch(() => {});
         log(`Repo ${fullName} updated (on ${defaultBranch})`);
@@ -102,15 +103,16 @@ export async function prepareForReview(fullName: string, prNumber: number): Prom
   const branchName = `pr-${prNumber}`;
   const defaultBranch = await getDefaultBranch(dir);
 
-  // Switch to default branch first to avoid "refusing to fetch into checked out branch"
+  // Clean working tree and switch to default branch to avoid checkout conflicts
   log(`Fetching ${fullName} PR #${prNumber}...`);
-  await run('git', ['checkout', defaultBranch], dir);
+  await run('git', ['checkout', '-f', defaultBranch], dir);
+  await run('git', ['clean', '-fd'], dir);
 
   // Fetch the PR ref (shallow fetch for speed)
   await run('git', ['fetch', '--depth', '1', 'origin', `pull/${prNumber}/head:${branchName}`, '--force'], dir, 300_000);
 
   // Checkout the PR branch
-  await run('git', ['checkout', branchName], dir);
+  await run('git', ['checkout', '-f', branchName], dir);
   log(`Checked out PR #${prNumber} in ${fullName}`);
 
   return dir;

@@ -10,6 +10,8 @@ export interface ReviewResult {
   exitCode: number;
   logFile: string;
   durationMs: number;
+  executionStatus?: string;
+  executionReason?: string;
 }
 
 function ensureLogsDir() {
@@ -26,23 +28,65 @@ function buildPrompt(template: string, vars: Record<string, string | number>): s
   return result;
 }
 
+function hasExplicitCodexCdArg(args: string[]): boolean {
+  return args.includes('-C') || args.includes('--cd');
+}
+
+function extractExecutionSummary(logFilePath: string): { executionStatus?: string; executionReason?: string } {
+  try {
+    const content = fs.readFileSync(logFilePath, 'utf-8');
+    const lines = content.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const line = lines[i];
+      if (!line.startsWith('{') || !line.endsWith('}')) {
+        continue;
+      }
+
+      try {
+        const payload = JSON.parse(line) as { status?: unknown; reason?: unknown };
+        if (typeof payload.status === 'string') {
+          return {
+            executionStatus: payload.status,
+            executionReason: typeof payload.reason === 'string' ? payload.reason : undefined,
+          };
+        }
+      } catch {
+        // Ignore non-JSON lines that happen to start/end with braces.
+      }
+    }
+  } catch {
+    // Ignore log read/parsing failures and fall back to exit-code-only handling.
+  }
+
+  return {};
+}
+
 export async function runCodexReview(
   config: Config,
   type: 'initial' | 'followup' | 'recheck',
   vars: { repo: string; number: number; title: string; author: string },
 ): Promise<ReviewResult> {
   const template = type === 'initial' || type === 'recheck' ? config.reviewer.review_prompt : config.reviewer.followup_prompt;
-  const prompt = buildPrompt(template, vars);
 
   // Prepare local repo: fetch & checkout the PR branch
-  let cwd: string;
+  let projectPath: string;
   try {
-    cwd = await prepareForReview(vars.repo, vars.number);
-    console.log(`[reviewer] Repo prepared at: ${cwd}`);
+    projectPath = await prepareForReview(vars.repo, vars.number);
+    console.log(`[reviewer] Repo prepared at: ${projectPath}`);
   } catch (err: any) {
     console.error(`[reviewer] Failed to prepare repo: ${err.message}`);
-    cwd = getRepoDir(vars.repo);
+    projectPath = getRepoDir(vars.repo);
   }
+
+  const appRoot = process.cwd();
+  const prLink = `https://github.com/${vars.repo}/pull/${vars.number}`;
+  const prompt = buildPrompt(template, {
+    ...vars,
+    pr_link: prLink,
+    project_path: projectPath,
+  });
+  const codexCwd = type === 'followup' ? projectPath : appRoot;
 
   // Create log file for this review
   ensureLogsDir();
@@ -52,7 +96,11 @@ export async function runCodexReview(
   const logFilePath = path.join(LOGS_DIR, logFileName);
 
   const startTime = Date.now();
-  const args = [...config.reviewer.args, prompt];
+  const baseArgs = [...config.reviewer.args];
+  if (!hasExplicitCodexCdArg(baseArgs)) {
+    baseArgs.push('-C', codexCwd);
+  }
+  const args = [...baseArgs, prompt];
 
   // Write header to log file
   const header = [
@@ -63,21 +111,23 @@ export async function runCodexReview(
     `Title: ${vars.title}`,
     `Author: ${vars.author}`,
     `Type: ${type}`,
-    `Command: ${config.reviewer.command} ${config.reviewer.args.join(' ')}`,
-    `Working directory: ${cwd}`,
+    `Command: ${config.reviewer.command} ${baseArgs.join(' ')}`,
+    `Codex working directory: ${codexCwd}`,
+    `Project path: ${projectPath}`,
+    `PR link: ${prLink}`,
     `${'='.repeat(40)}`,
     '',
   ].join('\n');
   fs.writeFileSync(logFilePath, header);
 
-  console.log(`[reviewer] Spawning: ${config.reviewer.command} ${config.reviewer.args.join(' ')} "<prompt>"`);
+  console.log(`[reviewer] Spawning: ${config.reviewer.command} ${baseArgs.join(' ')} "<prompt>"`);
   console.log(`[reviewer] Log file: ${logFilePath}`);
 
   return new Promise((resolve) => {
     const logStream = fs.createWriteStream(logFilePath, { flags: 'a' });
 
     const child = spawn(config.reviewer.command, args, {
-      cwd,
+      cwd: codexCwd,
       env: { ...process.env, GITHUB_TOKEN: config.github.token },
       stdio: ['ignore', 'pipe', 'pipe'],
       timeout: config.reviewer.timeout_seconds * 1000,
@@ -93,7 +143,12 @@ export async function runCodexReview(
       const duration = Date.now() - startTime;
       logStream.write(`\n${'='.repeat(40)}\n${footer}\nDuration: ${duration}ms\n`);
       logStream.end(() => {
-        resolve({ exitCode, logFile: logFilePath, durationMs: duration });
+        resolve({
+          exitCode,
+          logFile: logFilePath,
+          durationMs: duration,
+          ...extractExecutionSummary(logFilePath),
+        });
       });
     }
 

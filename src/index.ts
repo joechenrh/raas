@@ -34,7 +34,7 @@ async function main() {
   }
 
   const app = new Hono();
-  registerDashboard(app, database, config);
+  registerDashboard(app, database, config, github);
 
   const scannerInterval = startScanner(config, database, github);
 
