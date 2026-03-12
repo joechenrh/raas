@@ -28,6 +28,39 @@ function buildPrompt(template: string, vars: Record<string, string | number>): s
   return result;
 }
 
+function normalizeReviewerArgs(args: string[]): string[] {
+  const normalized = [...args];
+
+  for (let i = 0; i < normalized.length - 1; i++) {
+    const flag = normalized[i];
+    const value = normalized[i + 1];
+    if ((flag === '-a' || flag === '--ask-for-approval') && value === 'full-auto') {
+      normalized.splice(i, 2, '--full-auto');
+      break;
+    }
+  }
+
+  const hasMultiAgent = normalized.some(
+    (arg, index) => arg === '--enable' && normalized[index + 1] === 'multi_agent',
+  );
+  if (!hasMultiAgent) {
+    normalized.push('--enable', 'multi_agent');
+  }
+
+  return normalized;
+}
+
+function hardenInitialReviewPrompt(prompt: string): string {
+  return `${prompt.trim()}
+
+Additional execution constraints:
+1. If the orchestration uses \`codex exec\` reviewer child processes, each child process is already the required reviewer subagent.
+2. Reviewer child processes must run the named skill directly in that same process.
+3. Reviewer child processes must not call \`spawn_agent\`, \`collab\`, \`Task\`, or delegate to any additional subagents.
+4. Keep reviewer child working directory at this repository root and grant the reviewed checkout via additional writable scope instead of switching child cwd there.
+`;
+}
+
 function hasExplicitCodexCdArg(args: string[]): boolean {
   return args.includes('-C') || args.includes('--cd');
 }
@@ -81,11 +114,14 @@ export async function runCodexReview(
 
   const appRoot = process.cwd();
   const prLink = `https://github.com/${vars.repo}/pull/${vars.number}`;
-  const prompt = buildPrompt(template, {
+  let prompt = buildPrompt(template, {
     ...vars,
     pr_link: prLink,
     project_path: projectPath,
   });
+  if (type === 'initial' || type === 'recheck') {
+    prompt = hardenInitialReviewPrompt(prompt);
+  }
   const codexCwd = type === 'followup' ? projectPath : appRoot;
 
   // Create log file for this review
@@ -96,7 +132,7 @@ export async function runCodexReview(
   const logFilePath = path.join(LOGS_DIR, logFileName);
 
   const startTime = Date.now();
-  const baseArgs = [...config.reviewer.args];
+  const baseArgs = normalizeReviewerArgs(config.reviewer.args);
   if (!hasExplicitCodexCdArg(baseArgs)) {
     baseArgs.push('-C', codexCwd);
   }

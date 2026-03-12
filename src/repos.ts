@@ -6,6 +6,7 @@ import path from 'node:path';
 const exec = promisify(execFile);
 
 const REPOS_DIR = path.join(process.cwd(), 'repos');
+const SYNC_REVIEW_SKILLS_SCRIPT = path.join(process.cwd(), 'scripts', 'sync_repo_review_skills.sh');
 
 function log(msg: string) {
   console.log(`[${new Date().toISOString()}] [repos] ${msg}`);
@@ -18,6 +19,10 @@ function repoDir(owner: string, repo: string): string {
 async function run(cmd: string, args: string[], cwd: string, timeout = 120_000): Promise<string> {
   const { stdout } = await exec(cmd, args, { cwd, timeout });
   return stdout.trim();
+}
+
+async function syncReviewSkills(targetPath: string): Promise<void> {
+  await run('bash', [SYNC_REVIEW_SKILLS_SCRIPT, '--target', targetPath], process.cwd(), 120_000);
 }
 
 async function getDefaultBranch(dir: string): Promise<string> {
@@ -63,6 +68,7 @@ export async function initRepos(repos: string[], _token: string): Promise<void> 
         await run('git', ['clean', '-fd'], dir);
         await run('git', ['fetch', '--all', '--prune'], dir, 300_000);
         await run('git', ['pull', '--ff-only'], dir).catch(() => {});
+        await syncReviewSkills(dir);
         log(`Repo ${fullName} updated (on ${defaultBranch})`);
       } catch (err: any) {
         log(`Failed to update ${fullName}: ${err.message}`);
@@ -80,6 +86,7 @@ export async function initRepos(repos: string[], _token: string): Promise<void> 
     log(`Cloning ${fullName}...`);
     try {
       await exec('git', ['clone', '--depth', '1', cloneUrl, dir], { timeout: 600_000 });
+      await syncReviewSkills(dir);
       log(`Cloned ${fullName}`);
     } catch (err: any) {
       log(`Failed to clone ${fullName}: ${err.message}`);
@@ -113,6 +120,7 @@ export async function prepareForReview(fullName: string, prNumber: number): Prom
 
   // Checkout the PR branch
   await run('git', ['checkout', '-f', branchName], dir);
+  await syncReviewSkills(dir);
   log(`Checked out PR #${prNumber} in ${fullName}`);
 
   return dir;
