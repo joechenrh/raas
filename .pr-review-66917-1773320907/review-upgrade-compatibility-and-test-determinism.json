@@ -1,0 +1,18 @@
+{
+  "findings": [
+    {
+      "severity": "Major",
+      "title": "Redacted cast failures can still expose the offending value through the copied reason text",
+      "why": "This should stay redacted end-to-end: the new `ErrCastValue` contract only marks the `received value` argument for redaction, but `LogKVConvertFailed` also copies `err.Error()` into the `Reason` field verbatim.",
+      "scope": "pkg/lightning/backend/kv/base.go:359-361 and pkg/lightning/common/errors.go:91-94",
+      "anchor": {
+        "path": "pkg/lightning/backend/kv/base.go",
+        "line": 360,
+        "side": "RIGHT"
+      },
+      "risk_if_unchanged": "When `tidb_enable_redact_log` is enabled, import/type-error records can still leak raw input data from cast failures, so operators do not actually get the compatibility/safety guarantee that the new redacted error format suggests.",
+      "evidence": "`ErrCastValue` redacts only argument index 2 in `pkg/lightning/common/errors.go`, while `pkg/lightning/backend/kv/base.go` sets `reason := err.Error()`. The updated regression case in `pkg/executor/importer/kv_encode_test.go:121` shows a real overflow error whose reason contains the original datum (`constant 10000000 overflows tinyint`), so a redacted message would still expose that value through `Reason:`.",
+      "change_request": "Can we redact or sanitize the copied `reason` before building `ErrCastValue`, instead of passing through the raw cast error text? Add a case for a redact-enabled real cast failure (for example the overflow path) to ensure the final error string never reintroduces the offending datum through `Reason:`."
+    }
+  ]
+}

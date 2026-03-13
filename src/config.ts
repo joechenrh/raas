@@ -19,6 +19,7 @@ export interface Config {
     users: string[];
     repos: string[];
     scan_interval_seconds: number;
+    followup_enabled: boolean;
     ignore_before?: string;  // ISO date string — skip PRs created before this time
   };
   reviewer: {
@@ -73,11 +74,24 @@ The local repository checkout is at:
 
 You have full access to read all source files for context.
 
+The authenticated review bot login for this run is:
+- \`{reviewer_login}\`
+
+Only process the exact follow-up targets below. Ignore every other PR comment or thread, even if the PR author replied there.
+
+\`\`\`json
+{followup_targets_json}
+\`\`\`
+
 Steps:
 1. Use \`gh api repos/{repo}/pulls/{number}/comments\` to fetch review comments
-2. Find threads where the PR author replied to your review
-3. Read the relevant source files for context if needed
-4. For each reply:
+2. Restrict work to the target entries listed above:
+   - root review comment id = \`parentCommentId\`
+   - author reply comment id = \`replyCommentId\`
+   - root review comment author must match \`{reviewer_login}\`
+3. If the target list is empty, exit without posting or resolving anything.
+4. Read the relevant source files for context if needed
+5. For each listed target:
    a. If the concern is adequately addressed, resolve the review thread
    b. If not, post a follow-up comment explaining what still needs work`;
 
@@ -122,6 +136,7 @@ export function loadConfig(configPath?: string): Config {
       users: normalizeStringList(parsed.monitor?.users, 'monitor.users'),
       repos: normalizeStringList(parsed.monitor?.repos, 'monitor.repos'),
       scan_interval_seconds: parsed.monitor?.scan_interval_seconds || 60,
+      followup_enabled: parsed.monitor?.followup_enabled ?? true,
       ignore_before: parsed.monitor?.ignore_before || new Date().toISOString(),
     },
     reviewer: {

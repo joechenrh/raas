@@ -1,0 +1,12 @@
+{
+  "event": "COMMENT",
+  "body": "**AI-generated review based on @D3Hunter's standards; manual review will be performed after all comments are resolved.**\n\n### Summary\n\n- Total findings: 1\n- Inline comments: 1\n- Summary-only findings (no inline anchor): 0\n\n<details>\n<summary>Findings (highest risk first)</summary>\n\n#### \ud83d\udfe1 **[Minor]** (1)\n\n1. New helper name hides the deferred callback contract (`br/pkg/restore/snap_client/pitr_collector_test.go:45 and the `TestConcurrency` call site at line 319`)\n\n</details>\n",
+  "comments": [
+    {
+      "path": "br/pkg/restore/snap_client/pitr_collector_test.go",
+      "line": 45,
+      "side": "RIGHT",
+      "body": "#### \ud83d\udfe1 **[Minor]** New helper name hides the deferred callback contract\n\n**Why**\n`RestoreAFileWithErr` reads like an eager restore operation, but the helper actually stages files, invokes `onBatch`, and returns a follow-up callback that the caller must execute later to finish the flow.\n\n**Scope**\nbr/pkg/restore/snap_client/pitr_collector_test.go:45 and the `TestConcurrency` call site at line 319\n\n**Risk if unchanged**\nFuture test changes can easily treat this as a complete restore step and forget the required callback phase, which makes the helper harder to use correctly without reopening the implementation.\n\n**Evidence**\nThe new method name only signals an added `error` return, while its actual contract is two-stage: `cb, err := coll.RestoreAFileWithErr(batch)` at line 319 and the real completion happens later in a separate `cb()` loop.\n\n**Change request**\nPrefer a name that exposes the deferred-work contract; current name is confusing. For example, rename this helper to something that signals it prepares or returns a completion callback rather than performing the full restore immediately."
+    }
+  ]
+}

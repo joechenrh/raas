@@ -1,0 +1,355 @@
+OpenAI Codex v0.113.0 (research preview)
+--------
+workdir: /mnt/data/joechenrh/raas
+model: gpt-5.4
+provider: right
+approval: never
+sandbox: danger-full-access
+reasoning effort: high
+reasoning summaries: none
+session id: 019ce280-8f7b-7163-8189-bec1ced727b0
+--------
+user
+Invoke skill `review-upgrade-compatibility-and-test-determinism` directly.
+Follow the repository-local `AGENTS.md` skill registration.
+Inputs: `code_path=/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870`, `diff_filename=66870.diff`, `output_filename=review-upgrade-compatibility-and-test-determinism.json`.
+Write output JSON to exactly `output_filename`.
+Run this subagent with write-capable filesystem access matching the parent execution mode.
+Do not run in parent; execute in this subagent only.
+Do not delegate to additional subagents.
+Do not call `spawn_agent`, `collab`, `Task`, or any additional subagents.
+Use `/mnt/data/joechenrh/raas` as the child working directory and access the reviewed checkout via the provided additional writable scope.
+
+deprecated: `collab` is deprecated. Use `[features].multi_agent` instead.
+  Enable it with `--enable multi_agent` or `[features].multi_agent` in config.toml. See https://developers.openai.com/codex/config-basic#feature-flags for details.
+mcp startup: no servers
+codex
+Using `review-upgrade-compatibility-and-test-determinism` directly against the provided worktree and diff. I’m opening that skill’s `SKILL.md` first, then I’ll inspect the diff and checkout, produce the required JSON, and write it to `review-upgrade-compatibility-and-test-determinism.json`.
+exec
+/usr/bin/bash -lc "ls -la /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870 | sed -n '1,120p'" in /mnt/data/joechenrh/raas succeeded in 0ms:
+total 1252
+drwxr-xr-x. 17 joechenrh joechenrh   4096 Mar 12 10:38 .
+drwxr-xr-x.  4 joechenrh joechenrh     50 Mar 12 10:38 ..
+drwxr-xr-x.  3 joechenrh joechenrh     28 Mar 12 10:38 .agents
+-rw-r--r--.  1 joechenrh joechenrh   1188 Mar 12 10:38 .bazelrc
+-rw-r--r--.  1 joechenrh joechenrh      5 Mar 12 10:38 .bazelversion
+drwxr-xr-x.  3 joechenrh joechenrh     28 Mar 12 10:38 .claude
+-rw-r--r--.  1 joechenrh joechenrh   2661 Mar 12 10:38 .codecov.yml
+-rw-r--r--.  1 joechenrh joechenrh    101 Mar 12 10:38 .dockerignore
+-rw-r--r--.  1 joechenrh joechenrh    162 Mar 12 10:38 .editorconfig
+-rw-r--r--.  1 joechenrh joechenrh     76 Mar 12 10:38 .git
+-rw-r--r--.  1 joechenrh joechenrh    302 Mar 12 10:38 .gitattributes
+drwxr-xr-x.  6 joechenrh joechenrh   4096 Mar 12 10:38 .github
+-rw-r--r--.  1 joechenrh joechenrh   1230 Mar 12 10:38 .gitignore
+-rw-r--r--.  1 joechenrh joechenrh    128 Mar 12 10:38 .gitmodules
+-rw-r--r--.  1 joechenrh joechenrh   9067 Mar 12 10:38 .golangci.yml
+-rw-r--r--.  1 joechenrh joechenrh    115 Mar 12 10:38 .mcp.json
+-rw-r--r--.  1 joechenrh joechenrh    997 Mar 12 10:38 .pre-commit-config.yaml
+-rw-r--r--.  1 joechenrh joechenrh  21384 Mar 12 10:38 66870.diff
+-rw-r--r--.  1 joechenrh joechenrh   2618 Mar 12 10:38 AGENTS.md
+exec
+/usr/bin/bash -lc "sed -n '1,220p' /mnt/data/joechenrh/raas/ai-engineer/skills/review-upgrade-compatibility-and-test-determinism/SKILL.md" in /mnt/data/joechenrh/raas succeeded in 0ms:
+---
+name: review-upgrade-compatibility-and-test-determinism
+description: Use when reviewing pull requests for API, schema, protocol, upgrade/downgrade compatibility, migration safety, and test determinism risks before merge.
+---
+
+# Review Compatibility, Upgrade Safety, and Test Determinism
+
+## Overview
+
+Use this skill to identify compatibility and test-determinism risks in behavior-changing pull requests.
+Focus on backward/forward compatibility, rolling upgrade and rollback safety, migration correctness, and whether tests provide deterministic evidence for changed behavior.
+
+This skill covers compatibility and test-determinism discovery only.
+After findings are identified, hand off output rendering to [review-output-format](../review-output-format/SKILL.md).
+
+This is a static-analysis-first review flow.
+Do not run build/test commands directly as part of this skill.
+
+## Input
+
+exec
+/usr/bin/bash -lc 'rg --files /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870 | head -n 50' in /mnt/data/joechenrh/raas succeeded in 0ms:
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/errors.toml
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/WORKSPACE.patchgo
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/WORKSPACE
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/SECURITY.md
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/README.md
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/OWNERS_ALIASES
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/OWNERS
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/Makefile.common
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/Makefile
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/MODULE.bazel
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/scripts/sync_repo_review_skills.sh
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/CONTRIBUTING.md
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/66870.diff
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/CODE_OF_CONDUCT.md
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/CLAUDE.md
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/BUILD.bazel
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/AGENTS.md
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/Dockerfile.enterprise
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/Dockerfile
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/DEPS.bzl
+codex
+The skill requires a full checklist pass plus the `review-output-format` handoff. I’m loading those instructions now and then reading the actual diff to map the changed compatibility surface before drafting findings.
+exec
+/usr/bin/bash -lc "sed -n '1,260p' /mnt/data/joechenrh/raas/ai-engineer/skills/review-upgrade-compatibility-and-test-determinism/references/compatibility-and-test-determinism-checklist.md" in /mnt/data/joechenrh/raas succeeded in 0ms:
+# Compatibility and Test Determinism Checklist
+
+## Core Checks
+
+Check:
+- compatibility promises are preserved or explicitly versioned
+- upgrade, mixed-version, and rollback paths are concretely safe
+- migrations are resumable, validated, and operationally controlled
+- tests cover changed behavior and are deterministic under parallel/constrained execution
+- release notes and operator runbooks describe required actions and validation
+- backward compatibility across mixed-version clusters is preserved (or explicitly guarded)
+- bootstrap/versioned metadata changes are append-only unless migration safety is proven
+- changed behavior during rolling upgrade/downgrade has explicit fallback or version gating
+- migration paths are idempotent and retry-safe under partial failure
+- incompatibility paths return actionable errors instead of silent fallback
+
+## Compatibility and Upgrade Safety
+
+### Public API backward compatibility
+
+exec
+/usr/bin/bash -lc "sed -n '1,240p' /mnt/data/joechenrh/raas/ai-engineer/skills/review-output-format/SKILL.md" in /mnt/data/joechenrh/raasexec
+/usr/bin/bash -lc "sed -n '1,260p' /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/66870.diff" in /mnt/data/joechenrh/raas succeeded in 0ms:
+---
+name: review-output-format
+description: Use when rendering review output, including severity ordering, required rubric fields, and mode-specific comment structure.
+---
+
+# Review Output Format
+
+## Overview
+
+Use this skill to format final review output after findings are already identified.
+It defines required structure for review findings.
+
+## Global Contract
+
+- Output must be exactly one valid JSON object (no Markdown headings, lists, or code fences).
+- The top-level object must include a `findings` array.
+- Every review finding must appear exactly once inside `findings`.
+- Do not repeat the attribution line inside individual finding objects.
+- One finding = one actionable issue.
+- Sort `findings` by risk (highest risk first).
+ succeeded in 0ms:
+diff --git a/DEPS.bzl b/DEPS.bzl
+index 0a3c555f6a56d..00b9ec1e29102 100644
+--- a/DEPS.bzl
++++ b/DEPS.bzl
+@@ -6387,13 +6387,13 @@ def go_deps():
+         name = "com_github_pingcap_errors",
+         build_file_proto_mode = "disable_global",
+         importpath = "github.com/pingcap/errors",
+-        sha256 = "b696ac3d19b74bd6c3454048767bf145c7d8b4d24c55337b27d2e0960d948949",
+-        strip_prefix = "github.com/pingcap/errors@v0.11.5-0.20250523034308-74f78ae071ee",
++        sha256 = "e90414b6322256cb88c6c39569070e23c074a95a803df4d2cedb10136e1d121c",
++        strip_prefix = "github.com/pingcap/errors@v0.11.5-0.20260310054046-9c8b3586e4b2",
+         urls = [
+-            "http://bazel-cache.pingcap.net:8080/gomod/github.com/pingcap/errors/com_github_pingcap_errors-v0.11.5-0.20250523034308-74f78ae071ee.zip",
+-            "http://ats.apps.svc/gomod/github.com/pingcap/errors/com_github_pingcap_errors-v0.11.5-0.20250523034308-74f78ae071ee.zip",
+-            "https://cache.hawkingrei.com/gomod/github.com/pingcap/errors/com_github_pingcap_errors-v0.11.5-0.20250523034308-74f78ae071ee.zip",
+-            "https://storage.googleapis.com/pingcapmirror/gomod/github.com/pingcap/errors/com_github_pingcap_errors-v0.11.5-0.20250523034308-74f78ae071ee.zip",
++            "http://bazel-cache.pingcap.net:8080/gomod/github.com/pingcap/errors/com_github_pingcap_errors-v0.11.5-0.20260310054046-9c8b3586e4b2.zip",
++            "http://ats.apps.svc/gomod/github.com/pingcap/errors/com_github_pingcap_errors-v0.11.5-0.20260310054046-9c8b3586e4b2.zip",
++            "https://cache.hawkingrei.com/gomod/github.com/pingcap/errors/com_github_pingcap_errors-v0.11.5-0.20260310054046-9c8b3586e4b2.zip",
+exec
+/usr/bin/bash -lc "sed -n '261,520p' /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/66870.diff" in /mnt/data/joechenrh/raas succeeded in 0ms:
++			}
++		}
++		return true
+ 	}, time.Second, 10*time.Millisecond)
+ 
+ 	for _, job := range jobs[1:] {
+diff --git a/pkg/types/BUILD.bazel b/pkg/types/BUILD.bazel
+index 636eda29bb8f6..c5a681b547e86 100644
+--- a/pkg/types/BUILD.bazel
++++ b/pkg/types/BUILD.bazel
+@@ -35,6 +35,7 @@ go_library(
+         "mydecimal.go",
+         "overflow.go",
+         "set.go",
++        "string.go",
+         "time.go",
+         "truncate.go",
+         "vector.go",
+diff --git a/pkg/types/string.go b/pkg/types/string.go
+new file mode 100644
+exec
+/usr/bin/bash -lc "sed -n '1,220p' /mnt/data/joechenrh/raas/ai-engineer/skills/review-output-format/references/phrase-bank.md" in /mnt/data/joechenrh/raas succeeded in 0ms:
+# Phrase Bank (Data-Derived)
+
+Purpose:
+- keep wording aligned with observed D3Hunter review style
+- provide short stems you can adapt with concrete scope/evidence
+- speed up drafting while keeping comments direct and actionable
+
+How to use:
+- use these as phrase stems, not mandatory copy-paste text
+- fill in concrete path/line/risk when asking for non-trivial changes
+- prefer one stem per comment to keep focus
+
+Clarify intent:
+- `what's this for?`
+- `when will this happen? seems a bug`
+- `do we still need this?`
+- `why not use <api/primitive>?`
+
+Request change:
+- `seems no need to <step>; can we remove it?`
+exec
+/usr/bin/bash -lc 'git -C /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870 status --short' in /mnt/data/joechenrh/raas succeeded in 0ms:
+ M AGENTS.md
+?? 66870.diff
+?? scripts/
+codex
+I’ve narrowed the diff to three relevant surfaces for this review category: dependency upgrades, a new exported time-parsing string wrapper in `pkg/types`, and several test rewrites for timing sensitivity. I’m pulling the surrounding code now to check whether any of those changes weaken upgrade safety or leave nondeterministic coverage gaps.
+exec
+/usr/bin/bash -lc "sed -n '120,280p' /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/pkg/util/gctuner/memory_limit_tuner_test.go" in /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870exec
+/usr/bin/bash -lc "sed -n '620,760p' /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/br/pkg/streamhelper/advancer_test.go" in /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870exec
+/usr/bin/bash -lc "sed -n '1960,2055p' /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/pkg/types/time.go" in /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870exec
+/usr/bin/bash -lc "sed -n '940,1010p' /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/pkg/types/time.go" in /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870 succeeded in 261ms:
+nvm is not compatible with the "npm_config_prefix" environment variable: currently set to "/mnt/data/joechenrh/.local/share/nvm/v25.6.1"
+Run `unset npm_config_prefix` to unset it.
+	checkNextGCEqualMemoryLimit()
+	memory210mb = allocator.alloc(210 << 20)
+	require.Eventually(t, func() bool {
+		return gcNum < getNowGCNum()
+	}, 5*time.Second, 100*time.Millisecond)
+	allocator.free(memory210mb)
+	allocator.free(memory600mb)
+}
+
+func TestIssue48741(t *testing.T) {
+	require.True(t, intest.InTest)
+	// Close GOGCTuner
+	gogcTuner := EnableGOGCTuner.Load()
+	EnableGOGCTuner.Store(false)
+	defer EnableGOGCTuner.Store(gogcTuner)
+
+	getMemoryLimitGCTotal := func() int64 {
+		return memory.MemoryLimitGCTotal.Load()
+ succeeded in 264ms:
+nvm is not compatible with the "npm_config_prefix" environment variable: currently set to "/mnt/data/joechenrh/.local/share/nvm/v25.6.1"
+Run `unset npm_config_prefix` to unset it.
+
+	adv := streamhelper.NewCheckpointAdvancer(env)
+	adv.UpdateCheckPointLagLimit(time.Minute)
+	adv.StartTaskListener(ctx)
+	c.advanceClusterTimeBy(2 * time.Minute)
+	// if global ts is not advanced, the checkpoint will not be lagged
+	c.advanceCheckpointBy(2 * time.Minute)
+	require.NoError(t, adv.OnTick(ctx))
+	c.advanceClusterTimeBy(3 * time.Minute)
+	require.ErrorContains(t, adv.OnTick(ctx), "lagged too large")
+	// after some times, the isPaused will be set and ticks are skipped
+	require.EventuallyWithT(t, func(c *assert.CollectT) {
+		assert.NoError(c, adv.OnTick(ctx))
+	}, 5*time.Second, 100*time.Millisecond)
+}
+
+// If the paused task are manually resumed, it should run normally
+func TestCheckPointResume(t *testing.T) {
+ succeeded in 266ms:
+nvm is not compatible with the "npm_config_prefix" environment variable: currently set to "/mnt/data/joechenrh/.local/share/nvm/v25.6.1"
+Run `unset npm_config_prefix` to unset it.
+	if num <= 69*10000000000+1231235959 {
+		num = num + 20000000000000
+		return getTime(ctx, num, originNum, t.Type())
+	}
+
+	// Check YYYYMMDDHHMMSS.
+	if num < 70*10000000000+101000000 {
+		return t, errors.Trace(ErrWrongValue.GenWithStackByArgs(TimeStr, strconv.FormatInt(num, 10)))
+	}
+
+	// Adjust year
+	// YYMMDDHHMMSS, 1970-1999
+	if num <= 991231235959 {
+		num = num + 19000000000000
+		return getTime(ctx, num, originNum, t.Type())
+	}
+
+	return getTime(ctx, num, originNum, t.Type())
+ succeeded in 270ms:
+nvm is not compatible with the "npm_config_prefix" environment variable: currently set to "/mnt/data/joechenrh/.local/share/nvm/v25.6.1"
+Run `unset npm_config_prefix` to unset it.
+		fracStr = format[fracIndex+1 : fracEnd]
+		for ; fracIndex > 0 && isPunctuation(format[fracIndex-1]); fracIndex-- {
+			// In case of multiple separators, e.g. 2020-10..10
+			continue
+		}
+		format = format[:fracIndex]
+	}
+	seps = ParseDateFormat(format)
+	return
+}
+
+// See https://dev.mysql.com/doc/refman/5.7/en/date-and-time-literals.html.
+func parseDatetime(ctx Context, str String, fsp int, isFloat bool) (Time, error) {
+	var (
+		year, month, day, hour, minute, second, deltaHour, deltaMinute int
+		fracStr                                                        string
+		tzSign, tzHour, tzSep, tzMinute                                string
+		hasTZ, hhmmss                                                  bool
+codex
+I’ve finished the checklist pass. There are no API, protocol, storage, config, or migration changes in this diff; the only compatibility-relevant production change is local string/error handling in `pkg/types`, and it preserves the existing exported `ParseTime` contract while adding a new wrapper-based entrypoint.
+exec
+/usr/bin/bash -lc 'git -C /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870 diff --stat -- 66870.diff >/dev/null; true' in /mnt/data/joechenrh/raas succeeded in 0ms:
+
+exec
+/usr/bin/bash -lc "sed -n '1,120p' /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/go.mod" in /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870exec
+/usr/bin/bash -lc 'rg -n "module github.com/pingcap/tidb|''^go [0-9]" /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/go.mod' in /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870exec
+/usr/bin/bash -lc "sed -n '1,120p' /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/pkg/types/string.go" in /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870 succeeded in 314ms:
+nvm is not compatible with the "npm_config_prefix" environment variable: currently set to "/mnt/data/joechenrh/.local/share/nvm/v25.6.1"
+Run `unset npm_config_prefix` to unset it.
+// Copyright 2026 PingCAP, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package types
+
+import "strings"
+
+ succeeded in 320ms:
+nvm is not compatible with the "npm_config_prefix" environment variable: currently set to "/mnt/data/joechenrh/.local/share/nvm/v25.6.1"
+Run `unset npm_config_prefix` to unset it.
+module github.com/pingcap/tidb
+
+go 1.25.6
+
+require (
+	cloud.google.com/go/kms v1.15.8
+	cloud.google.com/go/storage v1.39.1
+	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.14.0
+	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.7.0
+	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.0.0
+	github.com/BurntSushi/toml v1.6.0
+	github.com/DATA-DOG/go-sqlmock v1.5.0
+	github.com/Masterminds/semver v1.5.0
+	github.com/YangKeao/go-mysql-driver v0.0.0-20240627104025-dd5589458cfa
+	github.com/alibabacloud-go/tea v1.3.11
+	github.com/aliyun/alibaba-cloud-sdk-go v1.61.1581
+	github.com/aliyun/alibabacloud-oss-go-sdk-v2 v1.2.3
+	github.com/aliyun/credentials-go v1.4.7
+ succeeded in 324ms:
+nvm is not compatible with the "npm_config_prefix" environment variable: currently set to "/mnt/data/joechenrh/.local/share/nvm/v25.6.1"
+Run `unset npm_config_prefix` to unset it.
+1:module github.com/pingcap/tidb
+3:go 1.25.6

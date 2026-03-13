@@ -1,0 +1,6 @@
+Invoke skill `review-runtime-reliability-performance` directly.
+Inputs: `code_path=/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66738`, `diff_filename=66738.diff`, `output_filename=/mnt/data/joechenrh/raas/.codex-pr-review-66738/review-runtime-reliability-performance.json`.
+Write output JSON to exactly `output_filename`.
+Run this subagent with write-capable filesystem access matching the parent execution mode.
+Do not run in parent; execute in this subagent only.
+Do not call spawn_agent, collab, Task, or delegate to additional subagents.

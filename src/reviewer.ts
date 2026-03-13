@@ -14,6 +14,17 @@ export interface ReviewResult {
   executionReason?: string;
 }
 
+export interface FollowupReviewMetadata {
+  botUser: string;
+  targets: Array<{
+    threadId: string;
+    parentCommentId: number;
+    replyCommentId: number;
+    replyAuthor: string;
+    replyCreatedAt: string;
+  }>;
+}
+
 function ensureLogsDir() {
   if (!fs.existsSync(LOGS_DIR)) {
     fs.mkdirSync(LOGS_DIR, { recursive: true });
@@ -98,7 +109,13 @@ function extractExecutionSummary(logFilePath: string): { executionStatus?: strin
 export async function runCodexReview(
   config: Config,
   type: 'initial' | 'followup' | 'recheck',
-  vars: { repo: string; number: number; title: string; author: string },
+  vars: {
+    repo: string;
+    number: number;
+    title: string;
+    author: string;
+    followupMetadata?: FollowupReviewMetadata;
+  },
 ): Promise<ReviewResult> {
   const template = type === 'initial' || type === 'recheck' ? config.reviewer.review_prompt : config.reviewer.followup_prompt;
 
@@ -114,10 +131,16 @@ export async function runCodexReview(
 
   const appRoot = process.cwd();
   const prLink = `https://github.com/${vars.repo}/pull/${vars.number}`;
+  const followupMetadata = vars.followupMetadata || { botUser: '', targets: [] };
   let prompt = buildPrompt(template, {
-    ...vars,
+    repo: vars.repo,
+    number: vars.number,
+    title: vars.title,
+    author: vars.author,
     pr_link: prLink,
     project_path: projectPath,
+    reviewer_login: followupMetadata.botUser,
+    followup_targets_json: JSON.stringify(followupMetadata.targets, null, 2),
   });
   if (type === 'initial' || type === 'recheck') {
     prompt = hardenInitialReviewPrompt(prompt);
@@ -151,6 +174,9 @@ export async function runCodexReview(
     `Codex working directory: ${codexCwd}`,
     `Project path: ${projectPath}`,
     `PR link: ${prLink}`,
+    ...(type === 'followup'
+      ? [`Follow-up targets: ${JSON.stringify(followupMetadata.targets)}`, `Reviewer login: ${followupMetadata.botUser}`]
+      : []),
     `${'='.repeat(40)}`,
     '',
   ].join('\n');

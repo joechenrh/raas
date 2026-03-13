@@ -1,0 +1,32 @@
+{
+  "findings": [
+    {
+      "severity": "Major",
+      "title": "readAllData now leaks stats-prop preparation into every caller",
+      "why": "This refactor turns a local reader concern into a package-wide calling contract: callers must prefetch prop ranges and keep two positionally related slices (`startOffsets` and `endOffsets`) aligned with the file lists.",
+      "scope": "pkg/lightning/backend/external/reader.go:37, pkg/lightning/backend/external/engine.go:521, pkg/lightning/backend/external/merge_v2.go:127, pkg/lightning/backend/external/testutil.go:75, pkg/lightning/backend/external/reader_test.go:159, pkg/lightning/backend/external/bench_test.go:704",
+      "anchor": {
+        "path": "pkg/lightning/backend/external/reader.go",
+        "line": 42,
+        "side": "RIGHT"
+      },
+      "risk_if_unchanged": "Future callers can mix key boundaries with the wrong offset slice, or miss the prep step entirely, which makes the read path harder to audit and raises the chance of partial-read or over-read regressions when this logic changes again.",
+      "evidence": "The same `getReadRangeFromProps(...); readAllData(..., readRanges[0][0], readRanges[1][1], ...)` sequence is now repeated in both production and test code, and `readAllData` depends on four correlated slice arguments (`dataFiles`, `statsFiles`, `startOffsets`, `endOffsets`) staying in sync.",
+      "change_request": "Seems no need to push prop lookup into every caller; can we keep one canonical helper or pass a named read-range object so `readAllData` still owns this storage-specific preparation?"
+    },
+    {
+      "severity": "Minor",
+      "title": "Package-global concurrency knob is introduced only to support one test seam",
+      "why": "The new mutable `getReadRangeFromPropsConcurrency` variable exists so `util_test.go` can override the helper's limit, which adds shared package state to production code for a single test case.",
+      "scope": "pkg/lightning/backend/external/util.go:49, pkg/lightning/backend/external/util_test.go:190",
+      "anchor": {
+        "path": "pkg/lightning/backend/external/util.go",
+        "line": 53,
+        "side": "RIGHT"
+      },
+      "risk_if_unchanged": "The helper's behavior now depends on ambient package state instead of explicit inputs, which is harder to reason about and can create order-dependent tests if more cases ever need to tweak the same limit.",
+      "evidence": "Production code reads `getReadRangeFromPropsConcurrency` in `getReadRangeFromProps`, while `TestGetReadRangeFromPropsLimitsParallelRead` mutates and restores that package variable around the call. There is no production path in this diff that needs the limit to vary dynamically.",
+      "change_request": "Why not use a private helper that accepts the limit, or inject the limit through a test-only seam? That keeps the production path deterministic without another package-global knob."
+    }
+  ]
+}

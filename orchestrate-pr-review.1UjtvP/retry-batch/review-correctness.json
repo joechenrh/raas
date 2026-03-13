@@ -1,0 +1,18 @@
+{
+  "findings": [
+    {
+      "severity": "Major",
+      "title": "NextGen ingest can panic because the new observers are never initialized in Lightning",
+      "why": "The added `Observe` calls dereference package-level `prometheus.Observer` globals, but those globals are only assigned inside `ingestmetric.InitIngestMetrics()`. The NextGen Lightning flow uses `ingestcli` without going through `pkg/metrics.InitMetrics/RegisterMetrics`, so both observers stay nil and the first write/ingest request will panic in a background goroutine.",
+      "scope": "pkg/ingestor/ingestcli/client.go:122-126 and pkg/ingestor/ingestcli/client.go:271-273, with the caller path in pkg/lightning/backend/local/local.go:1675-1683 and Lightning metric bootstrap in lightning/pkg/server/lightning.go:447-448",
+      "anchor": {
+        "path": "pkg/ingestor/ingestcli/client.go",
+        "line": 125,
+        "side": "RIGHT"
+      },
+      "risk_if_unchanged": "Any NextGen Lightning import that reaches this path can crash the process instead of finishing the write/ingest step, so the feature regresses from \"no metric\" to a hard failure.",
+      "evidence": "`ingestmetric.WriteAPIDuration` and `ingestmetric.IngestAPIDuration` are zero-value globals until `InitIngestMetrics()` runs (`pkg/ingestor/ingestmetric/metric.go:30-49`). The new code now always calls `Observe(...)` on them (`pkg/ingestor/ingestcli/client.go:125` and `pkg/ingestor/ingestcli/client.go:273`). However Lightning initializes its own registry via `metric.NewMetrics(...); metrics.RegisterTo(o.promRegistry)` (`lightning/pkg/server/lightning.go:447-448`) and never calls `pkg/metrics.InitMetrics/RegisterMetrics`, so this path has no place that initializes the new globals before `ingestcli.NewClient(...)` is used from `pkg/lightning/backend/local/local.go:1682`.",
+      "change_request": "Please add an explicit init/register path for these ingest metrics in the Lightning runtime before `ingestcli` is used, or make the observe sites nil-safe and wire the histogram through Lightning's own metric registry. Add a case for invoking `WriteClient`/`Ingest` without `pkg/metrics` bootstrap so this regression is caught."
+    }
+  ]
+}

@@ -1,0 +1,378 @@
+OpenAI Codex v0.113.0 (research preview)
+--------
+workdir: /mnt/data/joechenrh/raas
+model: gpt-5.4
+provider: right
+approval: never
+sandbox: danger-full-access
+reasoning effort: high
+reasoning summaries: none
+session id: 019ce280-8f78-7482-91f7-c025e8dc21b5
+--------
+user
+Invoke skill `review-scope-structure-abstraction` directly.
+Follow the repository-local `AGENTS.md` skill registration.
+Inputs: `code_path=/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870`, `diff_filename=66870.diff`, `output_filename=review-scope-structure-abstraction.json`.
+Write output JSON to exactly `output_filename`.
+Run this subagent with write-capable filesystem access matching the parent execution mode.
+Do not run in parent; execute in this subagent only.
+Do not delegate to additional subagents.
+Do not call `spawn_agent`, `collab`, `Task`, or any additional subagents.
+Use `/mnt/data/joechenrh/raas` as the child working directory and access the reviewed checkout via the provided additional writable scope.
+
+deprecated: `collab` is deprecated. Use `[features].multi_agent` instead.
+  Enable it with `--enable multi_agent` or `[features].multi_agent` in config.toml. See https://developers.openai.com/codex/config-basic#feature-flags for details.
+mcp startup: no servers
+codex
+Using `review-scope-structure-abstraction` directly. I’m opening the skill instructions and the PR worktree context first, then I’ll run the review and write the JSON to the requested filename.
+exec
+/usr/bin/bash -lc "sed -n '1,220p' /mnt/data/joechenrh/raas/ai-engineer/skills/review-scope-structure-abstraction/SKILL.md" in /mnt/data/joechenrh/raas succeeded in 0ms:
+---
+name: review-scope-structure-abstraction
+description: Use when reviewing pull requests for package cohesion, layer placement, method extraction, and duplication risks before merge.
+---
+
+# Review Code Structure, Encapsulation, and Duplication
+
+## Overview
+
+Use this skill to identify structure and maintainability issues in behavior-changing pull requests.
+Focus on package boundaries, layer placement, extraction seams, abstraction discipline, scope containment, and duplicate definitions that can cause drift or shadowing.
+
+This skill covers category-3 discovery only.
+After findings are identified, hand off output rendering to [review-output-format](../review-output-format/SKILL.md).
+
+This is a static-analysis-first review flow.
+Do not run build/test commands directly as part of this skill.
+
+## Input
+
+exec
+/usr/bin/bash -lc "printf '%s
+' /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870 && rg --files /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870 | wc -l && ls -la /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870 | sed -n '1,80p'" in /mnt/data/joechenrh/raas succeeded in 0ms:
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870
+7185
+total 1252
+drwxr-xr-x. 17 joechenrh joechenrh   4096 Mar 12 10:38 .
+drwxr-xr-x.  4 joechenrh joechenrh     50 Mar 12 10:38 ..
+drwxr-xr-x.  3 joechenrh joechenrh     28 Mar 12 10:38 .agents
+-rw-r--r--.  1 joechenrh joechenrh   1188 Mar 12 10:38 .bazelrc
+-rw-r--r--.  1 joechenrh joechenrh      5 Mar 12 10:38 .bazelversion
+drwxr-xr-x.  3 joechenrh joechenrh     28 Mar 12 10:38 .claude
+-rw-r--r--.  1 joechenrh joechenrh   2661 Mar 12 10:38 .codecov.yml
+-rw-r--r--.  1 joechenrh joechenrh    101 Mar 12 10:38 .dockerignore
+-rw-r--r--.  1 joechenrh joechenrh    162 Mar 12 10:38 .editorconfig
+-rw-r--r--.  1 joechenrh joechenrh     76 Mar 12 10:38 .git
+-rw-r--r--.  1 joechenrh joechenrh    302 Mar 12 10:38 .gitattributes
+drwxr-xr-x.  6 joechenrh joechenrh   4096 Mar 12 10:38 .github
+-rw-r--r--.  1 joechenrh joechenrh   1230 Mar 12 10:38 .gitignore
+-rw-r--r--.  1 joechenrh joechenrh    128 Mar 12 10:38 .gitmodules
+-rw-r--r--.  1 joechenrh joechenrh   9067 Mar 12 10:38 .golangci.yml
+-rw-r--r--.  1 joechenrh joechenrh    115 Mar 12 10:38 .mcp.json
+-rw-r--r--.  1 joechenrh joechenrh    997 Mar 12 10:38 .pre-commit-config.yaml
+codex
+I have the skill contract. Next I’m loading the category-3 checklist, the output-format skill, the repo-local `AGENTS.md`, and the PR diff so I can map the review surface before writing findings.
+exec
+/usr/bin/bash -lc "sed -n '1,260p' /mnt/data/joechenrh/raas/ai-engineer/skills/review-scope-structure-abstraction/references/structure-encapsulation-duplication-checklist.md" in /mnt/data/joechenrh/raas succeeded in 0ms:
+# Code Structure, Encapsulation, and Duplication Checklist
+
+## Core Checks
+
+Check:
+- package cohesion: avoid mixing unrelated concerns in one package
+- code placement: keep logic at the right layer (planner/executor/scheduler/storage)
+- encapsulation: extract methods when one block mixes responsibilities
+- readability: name extracted methods by behavior, not by mechanism
+- testability: create seams that reduce setup and isolate side effects
+- deduplication: if similar logic appears in 2+ places, prefer one focused helper
+- avoid generic wrappers when direct APIs are clearer
+- avoid exported or global utilities for one-time local logic
+- avoid mixing unrelated behavior changes in a bugfix PR
+- duplicate-definition safety: detect same-scope collisions in map keys, switch labels, registry entries, and table-driven test definitions
+- SQL fixture duplication: normalize and compare raw SQL strings (case/whitespace/quoting), including repeated placeholder-style literals such as `select $$`
+- duplicate-definition sweep: when duplication-prone structures are touched, run a sweep for collisions, shadowing, and unreachable duplicate cases
+
+## Scope Definition
+
+exec
+/usr/bin/bash -lc "sed -n '1,260p' /mnt/data/joechenrh/raas/ai-engineer/skills/review-output-format/SKILL.md" in /mnt/data/joechenrh/raas succeeded in 0ms:
+---
+name: review-output-format
+description: Use when rendering review output, including severity ordering, required rubric fields, and mode-specific comment structure.
+---
+
+# Review Output Format
+
+## Overview
+
+Use this skill to format final review output after findings are already identified.
+It defines required structure for review findings.
+
+## Global Contract
+
+- Output must be exactly one valid JSON object (no Markdown headings, lists, or code fences).
+- The top-level object must include a `findings` array.
+- Every review finding must appear exactly once inside `findings`.
+- Do not repeat the attribution line inside individual finding objects.
+- One finding = one actionable issue.
+- Sort `findings` by risk (highest risk first).
+exec
+/usr/bin/bash -lc "sed -n '1,260p' /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/66870.diff" in /mnt/data/joechenrh/raas succeeded in 0ms:
+diff --git a/DEPS.bzl b/DEPS.bzl
+index 0a3c555f6a56d..00b9ec1e29102 100644
+--- a/DEPS.bzl
++++ b/DEPS.bzl
+@@ -6387,13 +6387,13 @@ def go_deps():
+         name = "com_github_pingcap_errors",
+         build_file_proto_mode = "disable_global",
+         importpath = "github.com/pingcap/errors",
+-        sha256 = "b696ac3d19b74bd6c3454048767bf145c7d8b4d24c55337b27d2e0960d948949",
+-        strip_prefix = "github.com/pingcap/errors@v0.11.5-0.20250523034308-74f78ae071ee",
++        sha256 = "e90414b6322256cb88c6c39569070e23c074a95a803df4d2cedb10136e1d121c",
++        strip_prefix = "github.com/pingcap/errors@v0.11.5-0.20260310054046-9c8b3586e4b2",
+         urls = [
+-            "http://bazel-cache.pingcap.net:8080/gomod/github.com/pingcap/errors/com_github_pingcap_errors-v0.11.5-0.20250523034308-74f78ae071ee.zip",
+-            "http://ats.apps.svc/gomod/github.com/pingcap/errors/com_github_pingcap_errors-v0.11.5-0.20250523034308-74f78ae071ee.zip",
+-            "https://cache.hawkingrei.com/gomod/github.com/pingcap/errors/com_github_pingcap_errors-v0.11.5-0.20250523034308-74f78ae071ee.zip",
+-            "https://storage.googleapis.com/pingcapmirror/gomod/github.com/pingcap/errors/com_github_pingcap_errors-v0.11.5-0.20250523034308-74f78ae071ee.zip",
++            "http://bazel-cache.pingcap.net:8080/gomod/github.com/pingcap/errors/com_github_pingcap_errors-v0.11.5-0.20260310054046-9c8b3586e4b2.zip",
++            "http://ats.apps.svc/gomod/github.com/pingcap/errors/com_github_pingcap_errors-v0.11.5-0.20260310054046-9c8b3586e4b2.zip",
++            "https://cache.hawkingrei.com/gomod/github.com/pingcap/errors/com_github_pingcap_errors-v0.11.5-0.20260310054046-9c8b3586e4b2.zip",
+exec
+/usr/bin/bash -lc "sed -n '1,260p' /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/AGENTS.md" in /mnt/data/joechenrh/raas succeeded in 0ms:
+## Skills
+### Available skills
+- orchestrate-github-pr-review: End-to-end GitHub PR review pipeline that prepares a worktree, runs 5 category review skills in parallel, merges the JSON outputs, submits one PR review, and cleans up. (file: /mnt/data/joechenrh/raas/ai-engineer/skills/orchestrate-github-pr-review/SKILL.md)
+- prepare-pr-diff-worktree: Create an isolated worktree for a PR, export the PR diff, and return `code_path`, `diff_filename`, and `work_tree`. (file: /mnt/data/joechenrh/raas/ai-engineer/skills/prepare-pr-diff-worktree/SKILL.md)
+- review-clarity-naming-comment-intent: Review naming, clarity, and comment intent issues in behavior-changing PRs. (file: /mnt/data/joechenrh/raas/ai-engineer/skills/review-clarity-naming-comment-intent/SKILL.md)
+- review-correctness: Review functional correctness, invariants, state integrity, concurrency safety, and regression risk. (file: /mnt/data/joechenrh/raas/ai-engineer/skills/review-correctness/SKILL.md)
+- review-runtime-reliability-performance: Review runtime reliability, failure handling, concurrency, and performance risks. (file: /mnt/data/joechenrh/raas/ai-engineer/skills/review-runtime-reliability-performance/SKILL.md)
+- review-scope-structure-abstraction: Review scope control, structure, encapsulation, abstraction quality, and duplication. (file: /mnt/data/joechenrh/raas/ai-engineer/skills/review-scope-structure-abstraction/SKILL.md)
+- review-upgrade-compatibility-and-test-determinism: Review upgrade safety, compatibility, and test determinism risks. (file: /mnt/data/joechenrh/raas/ai-engineer/skills/review-upgrade-compatibility-and-test-determinism/SKILL.md)
+- review-output-format: Render review findings into the required JSON payload format. (file: /mnt/data/joechenrh/raas/ai-engineer/skills/review-output-format/SKILL.md)
+- merge-review-json-and-submit-pr-review: Merge category review JSON files and submit one GitHub PR review. (file: /mnt/data/joechenrh/raas/ai-engineer/skills/merge-review-json-and-submit-pr-review/SKILL.md)
+- cleanup-pr-diff-worktree: Remove the temporary PR worktree after review. (file: /mnt/data/joechenrh/raas/ai-engineer/skills/cleanup-pr-diff-worktree/SKILL.md)
+
+### How to use skills
+- If a prompt names one of the skills above, invoke that skill directly instead of recreating its workflow manually.
+- Prefer `orchestrate-github-pr-review` for initial PR review or recheck when given a GitHub PR link.
+- Pass inputs using the exact parameter names defined in the target `SKILL.md`.
+- Only use the smaller review-category skills directly when a prompt explicitly asks for a single review dimension.
+codex
+The diff touches tests, a DDL timeout path, time parsing, and dependency bumps. I’m pulling the changed-file summary plus focused context around the nontrivial hunks to decide whether there’s any category-3 structure or scope issue, not just correctness issues.
+exec
+/usr/bin/bash -lc "sed -n '260,520p' /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/66870.diff" in /mnt/data/joechenrh/raas succeeded in 0ms:
++				return false
++			}
++		}
++		return true
+ 	}, time.Second, 10*time.Millisecond)
+ 
+ 	for _, job := range jobs[1:] {
+diff --git a/pkg/types/BUILD.bazel b/pkg/types/BUILD.bazel
+index 636eda29bb8f6..c5a681b547e86 100644
+--- a/pkg/types/BUILD.bazel
++++ b/pkg/types/BUILD.bazel
+@@ -35,6 +35,7 @@ go_library(
+         "mydecimal.go",
+         "overflow.go",
+         "set.go",
++        "string.go",
+         "time.go",
+         "truncate.go",
+         "vector.go",
+diff --git a/pkg/types/string.go b/pkg/types/string.go
+exec
+/usr/bin/bash -lc 'git -C /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870 diff --name-only --diff-filter=AMR HEAD~1 HEAD' in /mnt/data/joechenrh/raas exited 128 in 0ms:
+fatal: ambiguous argument 'HEAD~1': unknown revision or path not in the working tree.
+Use '--' to separate paths from revisions, like this:
+'git <command> [<revision>...] -- [<file>...]'
+exec
+/usr/bin/bash -lc 'git -C /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870 diff --stat HEAD~1 HEAD' in /mnt/data/joechenrh/raas exited 128 in 0ms:
+fatal: ambiguous argument 'HEAD~1': unknown revision or path not in the working tree.
+Use '--' to separate paths from revisions, like this:
+'git <command> [<revision>...] -- [<file>...]'
+codex
+A likely category-3 hotspot is the new `pkg/types/string.go` API surface. I’m checking usage and surrounding context to confirm whether this is justified reuse or a one-off abstraction added for a local warning-formatting fix.
+exec
+/usr/bin/bash -lc "nl -ba /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/pkg/types/string.go | sed -n '1,220p'" in /mnt/data/joechenrh/raas succeeded in 0ms:
+     1	// Copyright 2026 PingCAP, Inc.
+     2	//
+     3	// Licensed under the Apache License, Version 2.0 (the "License");
+     4	// you may not use this file except in compliance with the License.
+     5	// You may obtain a copy of the License at
+     6	//
+     7	//     http://www.apache.org/licenses/LICENSE-2.0
+     8	//
+     9	// Unless required by applicable law or agreed to in writing, software
+    10	// distributed under the License is distributed on an "AS IS" BASIS,
+    11	// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    12	// See the License for the specific language governing permissions and
+    13	// limitations under the License.
+    14	
+    15	package types
+    16	
+    17	import "strings"
+    18	
+    19	// String is a lightweight string contract for time parsing APIs.
+    20	// It lets callers mark unsafe string sources (for example, zero-copy chunk buffers)
+exec
+/usr/bin/bash -lc "nl -ba /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/pkg/types/time.go | sed -n '940,970p;1988,2042p;2194,2212p'" in /mnt/data/joechenrh/raas succeeded in 0ms:
+   940			fracStr = format[fracIndex+1 : fracEnd]
+   941			for ; fracIndex > 0 && isPunctuation(format[fracIndex-1]); fracIndex-- {
+   942				// In case of multiple separators, e.g. 2020-10..10
+   943				continue
+   944			}
+   945			format = format[:fracIndex]
+   946		}
+   947		seps = ParseDateFormat(format)
+   948		return
+   949	}
+   950	
+   951	// See https://dev.mysql.com/doc/refman/5.7/en/date-and-time-literals.html.
+   952	func parseDatetime(ctx Context, str String, fsp int, isFloat bool) (Time, error) {
+   953		var (
+   954			year, month, day, hour, minute, second, deltaHour, deltaMinute int
+   955			fracStr                                                        string
+   956			tzSign, tzHour, tzSep, tzMinute                                string
+   957			hasTZ, hhmmss                                                  bool
+   958			err                                                            error
+   959		)
+exec
+/usr/bin/bash -lc "nl -ba /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/pkg/expression/builtin_time.go | sed -n '4816,4866p'" in /mnt/data/joechenrh/raas succeeded in 0ms:
+  4816	// isDuration returns a boolean indicating whether the str matches the format of duration.
+  4817	// See https://dev.mysql.com/doc/refman/5.7/en/time.html
+  4818	func isDuration(str string) bool {
+  4819		return durationPattern.MatchString(str)
+  4820	}
+  4821	
+  4822	// strDatetimeAddDuration adds duration to datetime string, returns a string value.
+  4823	func strDatetimeAddDuration(tc types.Context, d string, arg1 types.Duration) (result string, isNull bool, err error) {
+  4824		arg0, err := types.ParseTimeWithString(tc, types.HackedStr(d), mysql.TypeDatetime, types.MaxFsp)
+  4825		if err != nil {
+  4826			// Return a warning regardless of the sql_mode, this is compatible with MySQL.
+  4827			tc.AppendWarning(err)
+  4828			return "", true, nil
+  4829		}
+  4830		ret, err := arg0.Add(tc, arg1)
+  4831		if err != nil {
+  4832			return "", false, err
+  4833		}
+  4834		fsp := types.MaxFsp
+  4835		if ret.Microsecond() == 0 {
+exec
+/usr/bin/bash -lc "rg -n \"ParseTimeWithString|type String interface|type PlainStr|type HackedStr|FreezeStr\\(|types\\.HackedStr\\(|PlainStr\\(\" /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870" in /mnt/data/joechenrh/raas succeeded in 0ms:
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/66870.diff:185:+	arg0, err := types.ParseTimeWithString(tc, types.HackedStr(d), mysql.TypeDatetime, types.MaxFsp)
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/66870.diff:194:+	arg0, err := types.ParseTimeWithString(tc, types.HackedStr(d), mysql.TypeDatetime, types.MaxFsp)
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/66870.diff:306:+type String interface {
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/66870.diff:311:+type PlainStr string
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/66870.diff:321:+type HackedStr string
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/66870.diff:329:+func (s HackedStr) FreezeStr() string {
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/66870.diff:359:+	return ParseTimeWithString(ctx, PlainStr(str), tp, fsp)
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/66870.diff:362:+// ParseTimeWithString parses a formatted string with type tp and specific fsp.
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/66870.diff:365:+func ParseTimeWithString(ctx Context, str String, tp byte, fsp int) (Time, error) {
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/66870.diff:374:+	return parseTime(ctx, PlainStr(str), tp, fsp, true)
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/66870.diff:396:+			_, err2 := adjustTimestampErrForDST(tz, PlainStr(t.String()), mysql.TypeTimestamp, Time{t}, err)
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/pkg/types/time.go:1993:	return ParseTimeWithString(ctx, PlainStr(str), tp, fsp)
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/pkg/types/time.go:1996:// ParseTimeWithString parses a formatted string with type tp and specific fsp.
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/pkg/types/time.go:1999:func ParseTimeWithString(ctx Context, str String, tp byte, fsp int) (Time, error) {
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/pkg/types/time.go:2009:	return parseTime(ctx, PlainStr(str), tp, fsp, true)
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/pkg/types/time.go:2210:			_, err2 := adjustTimestampErrForDST(tz, PlainStr(t.String()), mysql.TypeTimestamp, Time{t}, err)
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/pkg/types/string.go:22:type String interface {
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/pkg/types/string.go:27:type PlainStr string
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/pkg/types/string.go:37:type HackedStr string
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/pkg/types/string.go:45:func (s HackedStr) FreezeStr() string {
+codex
+The abstraction is only used at two callsites so far. I’m checking whether the repo already has a closer existing type for mutable-string freezing, because that determines whether this new public `types` contract is unnecessary indirection or an intentional extension point.
+exec
+/usr/bin/bash -lc 'git -C /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870 status --short' in /mnt/data/joechenrh/raas succeeded in 0ms:
+ M AGENTS.md
+?? 66870.diff
+?? scripts/
+exec
+/usr/bin/bash -lc "rg -n \"FreezeStr\\(|HackedStr|ParseTimeWithString|type .*interface.*String\\(\\) string|hack\\.String\\(\" /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/pkg /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/br /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/tests" in /mnt/data/joechenrh/raas succeeded in 0ms:
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/pkg/util/topsql/collector/mock/mock.go:160:	digestStr := string(hack.String(sqlDigest))
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/pkg/util/topsql/collector/mock/mock.go:175:	digestStr := string(hack.String(planDigest))
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/br/pkg/restore/internal/rawkv/rawkv_client.go:79:	sk := hack.String(k)
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/pkg/server/conn.go:1420:	dataStr := string(hack.String(data))
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/pkg/server/conn.go:1446:			dataStr = string(hack.String(data))
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/pkg/server/conn.go:1474:			dataStr = string(hack.String(data))
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/pkg/server/conn.go:1946:				isCommonHandle[string(hack.String(idxKey))] = v.TblInfo.IsCommonHandle
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/pkg/server/conn.go:1973:					isCommonHandle[string(hack.String(idxKey))] = v.TblInfo.IsCommonHandle
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/pkg/server/conn.go:2580:	cc.user = string(hack.String(user))
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/pkg/server/conn.go:2592:	cc.dbname = string(hack.String(dbName))
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/pkg/server/conn.go:2601:			pluginName = string(hack.String(pluginNameB))
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/pkg/server/conn.go:2719:		sql := string(hack.String(data))
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/pkg/server/conn.go:2732:		return string(hack.String(data))
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/pkg/server/conn.go:2752:		return parser.Normalize(executor.FormatSQL(string(hack.String(data))).String(), errors.RedactLogEnable)
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/pkg/privilege/privileges/tidb_auth_token_test.go:262:	return string(hack.String(bytes)), nil
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/pkg/privilege/privileges/privileges.go:640:		tokenString := string(hack.String(authentication[:len(authentication)-1]))
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/pkg/meta/meta.go:1359:		if !strings.HasPrefix(string(hack.String(field)), "Table") {
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/pkg/meta/meta.go:1363:		idMatch := idRegex.FindStringSubmatch(string(hack.String(value)))
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/pkg/meta/meta.go:1364:		nameLMatch := nameLRegex.FindStringSubmatch(string(hack.String(value)))
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/pkg/meta/meta.go:1402:		if !strings.HasPrefix(string(hack.String(field)), "Table") {
+exec
+/usr/bin/bash -lc 'go env GOPATH' in /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870 succeeded in 317ms:
+nvm is not compatible with the "npm_config_prefix" environment variable: currently set to "/mnt/data/joechenrh/.local/share/nvm/v25.6.1"
+Run `unset npm_config_prefix` to unset it.
+/mnt/data/joechenrh/go
+codex
+This PR does not read like a single objective from the diff alone: it mixes bug fixes, test flake work, and dependency upgrades. I’m checking the local commit metadata to confirm whether the change was intentionally staged or whether this is one mixed review surface.
+exec
+/usr/bin/bash -lc 'git -C /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870 rev-parse --short HEAD' in /mnt/data/joechenrh/raas succeeded in 0ms:
+ea38f28
+exec
+/usr/bin/bash -lc 'git -C /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870 branch -vv' in /mnt/data/joechenrh/raasexec
+/usr/bin/bash -lc 'git -C /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870 log --oneline --decorate -n 5' in /mnt/data/joechenrh/raas succeeded in 0ms:
+* (no branch) ea38f28 Merge remote-tracking branch 'upstream/master' into codex/fix-66834-warning-freeze
+  master      ceb64eb [origin/master] planner: Fix optimizer test sensitivity to stats load (#66928)
+  pr-66738    d0dad84 lightning/external: guard empty job keys and cap prop reads
++ pr-66870    ea38f28 (/mnt/data/joechenrh/raas/repos/pingcap/tidb) Merge remote-tracking branch 'upstream/master' into codex/fix-66834-warning-freeze
+  pr-66883    119e857 dumpling: support keyspace-level GC for keyspace clusters
+  pr-66917    7829e08 lightning, importer: update errdoc for cast error
+  pr-66943    fb737fb metrics: fix global sort ingest panel layout
+  pr-66949    e88e228 importinto: revert unnecessary nil check for Remote
+ succeeded in 0ms:
+ea38f28 (grafted, HEAD, pr-66870) Merge remote-tracking branch 'upstream/master' into codex/fix-66834-warning-freeze
+exec
+/usr/bin/bash -lc 'git -C /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870 merge-base master HEAD' in /mnt/data/joechenrh/raas exited 1 in 0ms:
+
+exec
+/usr/bin/bash -lc 'git -C /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870 diff --stat master...HEAD' in /mnt/data/joechenrh/raas exited 128 in 0ms:
+fatal: master...HEAD: no merge base
+exec
+/usr/bin/bash -lc 'git -C /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870 diff --name-only master...HEAD' in /mnt/data/joechenrh/raas exited 128 in 0ms:
+fatal: master...HEAD: no merge base
+codex
+The worktree is shallow/grafted, so I’m treating `66870.diff` as the authoritative review surface rather than trying to reconstruct history from git ancestry. Next step is checking for duplicate-definition or unnecessary-API signals across the changed files.
+exec
+/usr/bin/bash -lc 'rg -n "''^diff --git" /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/66870.diff' in /mnt/data/joechenrh/raas succeeded in 0ms:
+1:diff --git a/DEPS.bzl b/DEPS.bzl
+45:diff --git a/br/pkg/streamhelper/advancer_test.go b/br/pkg/streamhelper/advancer_test.go
+104:diff --git a/go.mod b/go.mod
+126:diff --git a/go.sum b/go.sum
+161:diff --git a/pkg/ddl/index.go b/pkg/ddl/index.go
+176:diff --git a/pkg/expression/builtin_time.go b/pkg/expression/builtin_time.go
+198:diff --git a/pkg/expression/builtin_time_test.go b/pkg/expression/builtin_time_test.go
+239:diff --git a/pkg/lightning/backend/local/region_job_test.go b/pkg/lightning/backend/local/region_job_test.go
+267:diff --git a/pkg/types/BUILD.bazel b/pkg/types/BUILD.bazel
+279:diff --git a/pkg/types/string.go b/pkg/types/string.go
+332:diff --git a/pkg/types/time.go b/pkg/types/time.go
+400:diff --git a/pkg/util/gctuner/memory_limit_tuner_test.go b/pkg/util/gctuner/memory_limit_tuner_test.go
+exec
+/usr/bin/bash -lc "awk '/"'^diff --git/{print $3" "$4}'"' /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870/66870.diff" in /mnt/data/joechenrh/raas succeeded in 0ms:
+a/DEPS.bzl b/DEPS.bzl
+a/br/pkg/streamhelper/advancer_test.go b/br/pkg/streamhelper/advancer_test.go
+a/go.mod b/go.mod
+a/go.sum b/go.sum
+a/pkg/ddl/index.go b/pkg/ddl/index.go
+a/pkg/expression/builtin_time.go b/pkg/expression/builtin_time.go
+a/pkg/expression/builtin_time_test.go b/pkg/expression/builtin_time_test.go
+a/pkg/lightning/backend/local/region_job_test.go b/pkg/lightning/backend/local/region_job_test.go
+a/pkg/types/BUILD.bazel b/pkg/types/BUILD.bazel
+a/pkg/types/string.go b/pkg/types/string.go
+a/pkg/types/time.go b/pkg/types/time.go
+a/pkg/util/gctuner/memory_limit_tuner_test.go b/pkg/util/gctuner/memory_limit_tuner_test.go
+exec
+/usr/bin/bash -lc 'git -C /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66870 diff --numstat --no-index /dev/null /dev/null 2>/dev/null; true' in /mnt/data/joechenrh/raas succeeded in 0ms:
+

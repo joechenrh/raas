@@ -1,0 +1,60 @@
+{
+  "findings": [
+    {
+      "severity": "Major",
+      "title": "ingestcli now has a hidden metrics-init prerequisite and can panic in NextGen callers",
+      "why": "The new duration observations dereference package-level observers that stay nil until `ingestmetric.InitIngestMetrics()` runs. `ingestcli` itself does not establish that initialization, so the change turns metrics bootstrap order into an implicit runtime contract for both package consumers and the NextGen Lightning path.",
+      "scope": "pkg/ingestor/ingestcli/client.go:122-126 and pkg/ingestor/ingestcli/client.go:271-274; pkg/ingestor/ingestmetric/metric.go:39-49; pkg/metrics/metrics.go:81-102; lightning/pkg/server/lightning.go:447-448; pkg/lightning/backend/local/local.go:1675-1683",
+      "anchor": {
+        "path": "pkg/ingestor/ingestcli/client.go",
+        "line": 125,
+        "side": "RIGHT"
+      },
+      "risk_if_unchanged": "Any focused test or runtime that reaches `pkg/ingestor/ingestcli` without first importing and initializing `pkg/metrics` can panic on the first write or ingest request. In Lightning's NextGen flow that escalates a telemetry-only change into a hard request failure or process crash path.",
+      "evidence": "`WriteAPIDuration` and `IngestAPIDuration` are zero-value globals until `InitIngestMetrics()` assigns them in `pkg/ingestor/ingestmetric/metric.go:39-49`. The new code now calls `Observe(...)` unconditionally in `pkg/ingestor/ingestcli/client.go:125` and `pkg/ingestor/ingestcli/client.go:273`. The only checked-in initializer is wired through `pkg/metrics.InitMetrics()` in `pkg/metrics/metrics.go:81-102`, while Lightning boots its own registry via `metric.NewMetrics(...); metrics.RegisterTo(o.promRegistry)` in `lightning/pkg/server/lightning.go:447-448` before using `ingestcli.NewClient(...)` from `pkg/lightning/backend/local/local.go:1682`.",
+      "change_request": "Make `ingestcli` safe without relying on out-of-band `pkg/metrics` side effects. Either initialize default observers inside `ingestmetric`, make the observe sites nil-safe, or explicitly wire these metrics through Lightning's registry before `ingestcli` is used. Please add a focused regression test for the no-`pkg/metrics` bootstrap path."
+    },
+    {
+      "severity": "Major",
+      "title": "Write-side metric name suggests per-call latency, but the code records one sample for the whole stream",
+      "why": "The current `WriteAPIDuration` label reads like latency for each `Write(*WriteRequest)` call, but the timer starts in `writeClient.init` and records exactly once when the long-lived chunked PUT completes.",
+      "scope": "pkg/ingestor/ingestmetric/metric.go:33; pkg/ingestor/ingestcli/client.go:115-126; pkg/ingestor/ingestcli/client_test.go:101-142",
+      "anchor": {
+        "path": "pkg/ingestor/ingestmetric/metric.go",
+        "line": 33,
+        "side": "RIGHT"
+      },
+      "risk_if_unchanged": "Dashboards and future instrumentation can mix stream-level latency on the write path with request-level latency on the ingest path, which makes the metric easy to misread and easy to double-count later.",
+      "evidence": "The write timer starts in `writeClient.init` before `startChunkedHTTPRequest`, is observed once in the goroutine defer, and `TestWriteClientDurationMetricObserveOnce` calls `client.Write(...)` twice while asserting the histogram count only increases by one.",
+      "change_request": "Rename this metric to something stream- or session-scoped, such as `WriteStreamDuration` or `WriteSessionDuration`, and add a short comment that one observation covers the full chunked write lifecycle rather than each `Write` call."
+    },
+    {
+      "severity": "Major",
+      "title": "Worker Grafana panel was changed only in the generated JSON, not in its maintained source",
+      "why": "`tidb_worker.json` is regenerated from `tidb_with_keyspace_name.json`, so editing the generated worker dashboard alone creates a second source of truth and makes the panel addition non-durable.",
+      "scope": "pkg/metrics/nextgengrafana/tidb_worker.json:25313; pkg/metrics/nextgengrafana/tidb_with_keyspace_name.json:26194; pkg/metrics/nextgengrafana/generate_json.sh:27",
+      "anchor": {
+        "path": "pkg/metrics/nextgengrafana/tidb_worker.json",
+        "line": 25313,
+        "side": "RIGHT"
+      },
+      "risk_if_unchanged": "The next `generate_json.sh` run will silently overwrite this new row title and panel, so the committed worker dashboard will drift from the checked-in generator input and future dashboard edits will regress unexpectedly.",
+      "evidence": "`pkg/metrics/nextgengrafana/generate_json.sh:27-31` rebuilds `tidb_worker.json` from `tidb_with_keyspace_name.json`. The PR adds `Write/Ingest API Duration` and renames the row to `Global Sort & Ingest` only in `pkg/metrics/nextgengrafana/tidb_worker.json:25313-25408`, while `pkg/metrics/nextgengrafana/tidb_with_keyspace_name.json:26194-26208` still has only `Active Parallel Upload Worker Count` under the old `Global Sort` row.",
+      "change_request": "Move this dashboard change into the maintained generator input for the worker dashboard, then regenerate `tidb_worker.json` so the committed JSON stays in sync with its upstream definition."
+    },
+    {
+      "severity": "Minor",
+      "title": "The new metric package exports mutable observer vars without a concrete external need",
+      "why": "Exporting `WriteAPIDuration` and `IngestAPIDuration` makes initialization order and mutability part of the package contract even though the only non-test caller is the local ingest client.",
+      "scope": "pkg/ingestor/ingestmetric/metric.go:31-36; pkg/ingestor/ingestcli/client.go:125; pkg/ingestor/ingestcli/client.go:273",
+      "anchor": {
+        "path": "pkg/ingestor/ingestmetric/metric.go",
+        "line": 34,
+        "side": "RIGHT"
+      },
+      "risk_if_unchanged": "Other packages can start depending on these vars directly, which widens the API surface for an internal instrumentation detail and makes later refactors or renames harder.",
+      "evidence": "A repo-wide search in this worktree shows `WriteAPIDuration` and `IngestAPIDuration` are only referenced from `pkg/ingestor/ingestcli/client.go`, while tests inspect the histogram vec `WriteIngestAPIDuration` rather than the per-label observers.",
+      "change_request": "Keep the per-label observers private or wrap them in unexported observe helpers, and leave only the minimum surface needed for registration and test introspection."
+    }
+  ]
+}

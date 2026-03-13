@@ -1,0 +1,943 @@
+OpenAI Codex v0.113.0 (research preview)
+--------
+workdir: /mnt/data/joechenrh/raas
+model: gpt-5.4
+provider: right
+approval: never
+sandbox: danger-full-access
+reasoning effort: high
+reasoning summaries: none
+session id: 019ce22b-2104-7a73-93e2-88fde9bfe1b3
+--------
+user
+Invoke skill `review-correctness` directly.
+Inputs: `code_path=/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917`, `diff_filename=66917.diff`, `output_filename=/mnt/data/joechenrh/raas/.pr-review-66917-1773320907/review-correctness.json`.
+Write output JSON to exactly `output_filename`.
+Run this child process with write-capable filesystem access matching the parent execution mode.
+This codex exec child process is already the required reviewer subagent.
+Do not run in parent; execute in this child process only.
+Do not call spawn_agent, collab, Task, or delegate to any additional subagents.
+Keep the child working directory at /mnt/data/joechenrh/raas; access the reviewed checkout via the provided additional writable scope.
+
+deprecated: `collab` is deprecated. Use `[features].multi_agent` instead.
+  Enable it with `--enable multi_agent` or `[features].multi_agent` in config.toml. See https://developers.openai.com/codex/config-basic#feature-flags for details.
+mcp: codex_apps starting
+2026-03-12T13:10:03.547069Z ERROR rmcp::transport::worker: worker quit with fatal: Transport channel closed, when UnexpectedContentType(Some("text/html; charset=UTF-8; body: <html>\n  <head>\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n    <style global>body{font-family:Arial,Helvetica,sans-serif}.container{align-items:center;display:flex;flex-direction:column;height:100%;justify-content:center;width:100%}@keyframes enlarge-appear{0%{opacity:0;transform:scale(75%) rotate(-90deg)}to{opacity:1;transform:scale(100%) rotate(0deg)}}.logo{color:#8e8ea0;padding-bottom:1.5rem}.scale-appear{animation:enlarge-appear .4s ease-out}@media (min-width:768px){.scale-appear{height:48px;width:48px}}.data:empty{display:none}.data{border-radius:5px;color:#8e8ea0;max-width:420px;text-align:center;width:100%}.data ul{list-style:none;padding:0}.blocked-icon{color:#ef4444}.message{align-items:center;display:flex;font-size:1.5rem;gap:1rem;justify-content:center}.explanation{font-size:.9rem;line-height:1.5;max-width:420px;opacity:50%;text-align:center;width:100%}.explanation a{color:#000}@media (prefers-color-scheme:dark){body{background-color:#343541;color:#eee}.logo{color:#acacbe}.explanation a{color:#fff}}</style>\n  </head>\n  <body>\n    <div class=\"container\">\n      <div class=\"logo\">\n        <svg\n          width=\"41\"\n          height=\"41\"\n          viewBox=\"0 0 41 41\"\n          fill=\"none\"\n          xmlns=\"http://www.w3.org/2000/svg\"\n          strokeWidth=\"2\"\n          class=\"scale-appear\"\n        >\n          <path\n            d=\"M37.5324 16.8707C37.9808 15.5241 38.1363 14.0974 37.9886 12.6859C37.8409 11.2744 37.3934 9.91076 36.676 8.68622C35.6126 6.83404 33.9882 5.3676 32.0373 4.4985C30.0864 3.62941 27.9098 3.40259 25.8215 3.85078C24.8796 2.7893 23.7219 1.94125 22.4257 1.36341C21.1295 0.785575 19.7249 0.491269 18.3058 0.500197C16.1708 0.495044 14.0893 1.16803 12.3614 2.42214C10.6335 3.67624 9.34853 5.44666 8.6917 7.47815C7.30085 7.76286 5.98686 8.3414 4.8377 9.17505C3.68854 10.0087 2.73073 11.0782 2.02839 12.312C0.956464 14.1591 0.498905 16.2988 0.721698 18.4228C0.944492 20.5467 1.83612 22.5449 3.268 24.1293C2.81966 25.4759 2.66413 26.9026 2.81182 28.3141C2.95951 29.7256 3.40701 31.0892 4.12437 32.3138C5.18791 34.1659 6.8123 35.6322 8.76321 36.5013C10.7141 37.3704 12.8907 37.5973 14.9789 37.1492C15.9208 38.2107 17.0786 39.0587 18.3747 39.6366C19.6709 40.2144 21.0755 40.5087 22.4946 40.4998C24.6307 40.5054 26.7133 39.8321 28.4418 38.5772C30.1704 37.3223 31.4556 35.5506 32.1119 33.5179C33.5027 33.2332 34.8167 32.6547 35.9659 31.821C37.115 30.9874 38.0728 29.9178 38.7752 28.684C39.8458 26.8371 40.3023 24.6979 40.0789 22.5748C39.8556 20.4517 38.9639 18.4544 37.5324 16.8707ZM22.4978 37.8849C20.7443 37.8874 19.0459 37.2733 17.6994 36.1501C17.7601 36.117 17.8666 36.0586 17.936 36.0161L25.9004 31.4156C26.1003 31.3019 26.2663 31.137 26.3813 30.9378C26.4964 30.7386 26.5563 30.5124 26.5549 30.2825V19.0542L29.9213 20.998C29.9389 21.0068 29.9541 21.0198 29.9656 21.0359C29.977 21.052 29.9842 21.0707 29.9867 21.0902V30.3889C29.9842 32.375 29.1946 34.2791 27.7909 35.6841C26.3872 37.0892 24.4838 37.8806 22.4978 37.8849ZM6.39227 31.0064C5.51397 29.4888 5.19742 27.7107 5.49804 25.9832C5.55718 26.0187 5.66048 26.0818 5.73461 26.1244L13.699 30.7248C13.8975 30.8408 14.1233 30.902 14.3532 30.902C14.583 30.902 14.8088 30.8408 15.0073 30.7248L24.731 25.1103V28.9979C24.7321 29.0177 24.7283 29.0376 24.7199 29.0556C24.7115 29.0736 24.6988 29.0893 24.6829 29.1012L16.6317 33.7497C14.9096 34.7416 12.8643 35.0097 10.9447 34.4954C9.02506 33.9811 7.38785 32.7263 6.39227 31.0064ZM4.29707 13.6194C5.17156 12.0998 6.55279 10.9364 8.19885 10.3327C8.19885 10.4013 8.19491 10.5228 8.19491 10.6071V19.808C8.19351 20.0378 8.25334 20.2638 8.36823 20.4629C8.48312 20.6619 8.64893 20.8267 8.84863 20.9404L18.5723 26.5542L15.206 28.4979C15.1894 28.5089 15.1703 28.5155 15.1505 28.5173C15.1307 28.5191 15.1107 28.516 15.0924 28.5082L7.04046 23.8557C5.32135 22.8601 4.06716 21.2235 3.55289 19.3046C3.03862 17.3858 3.30624 15.3413 4.29707 13.6194ZM31.955 20.0556L22.2312 14.4411L25.5976 12.4981C25.6142 12.4872 25.6333 12.4805 25.6531 12.4787C25.6729 12.4769 25.6928 12.4801 25.7111 12.4879L33.7631 17.1364C34.9967 17.849 36.0017 18.8982 36.6606 20.1613C37.3194 21.4244 37.6047 22.849 37.4832 24.2684C37.3617 25.6878 36.8382 27.0432 35.9743 28.1759C35.1103 29.3086 33.9415 30.1717 32.6047 30.6641C32.6047 30.5947 32.6047 30.4733 32.6047 30.3889V21.188C32.6066 20.9586 32.5474 20.7328 32.4332 20.5338C32.319 20.3348 32.154 20.1698 31.955 20.0556ZM35.3055 15.0128C35.2464 14.9765 35.1431 14.9142 35.069 14.8717L27.1045 10.2712C26.906 10.1554 26.6803 10.0943 26.4504 10.0943C26.2206 10.0943 25.9948 10.1554 25.7963 10.2712L16.0726 15.8858V11.9982C16.0715 11.9783 16.0753 11.9585 16.0837 11.9405C16.0921 11.9225 16.1048 11.9068 16.1207 11.8949L24.1719 7.25025C25.4053 6.53903 26.8158 6.19376 28.2383 6.25482C29.6608 6.31589 31.0364 6.78077 32.2044 7.59508C33.3723 8.40939 34.2842 9.53945 34.8334 10.8531C35.3826 12.1667 35.5464 13.6095 35.3055 15.0128ZM14.2424 21.9419L10.8752 19.9981C10.8576 19.9893 10.8423 19.9763 10.8309 19.9602C10.8195 19.9441 10.8122 19.9254 10.8098 19.9058V10.6071C10.8107 9.18295 11.2173 7.78848 11.9819 6.58696C12.7466 5.38544 13.8377 4.42659 15.1275 3.82264C16.4173 3.21869 17.8524 2.99464 19.2649 3.1767C20.6775 3.35876 22.0089 3.93941 23.1034 4.85067C23.0427 4.88379 22.937 4.94215 22.8668 4.98473L14.9024 9.58517C14.7025 9.69878 14.5366 9.86356 14.4215 10.0626C14.3065 10.2616 14.2466 10.4877 14.2479 10.7175L14.2424 21.9419ZM16.071 17.9991L20.4018 15.4978L24.7325 17.9975V22.9985L20.4018 25.4983L16.071 22.9985V17.9991Z\"\n            fill=\"currentColor\"\n          />\n        </svg>\n      </div>\n      <div class=\"message\">\n        <svg\n          xmlns=\"http://www.w3.org/2000/svg\"\n          fill=\"none\"\n          width=\"24\"\n          height=\"24\"\n          viewBox=\"0 0 24 24\"\n          stroke-width=\"1.5\"\n          stroke=\"currentColor\"\n          class=\"blocked-icon\"\n        >\n          <path\n            stroke-linecap=\"round\"\n            stroke-linejoin=\"round\"\n            d=\"M12 9v3.75m0-10.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.75c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.57-.598-3.75h-.152c-3.196 0-6.1-1.249-8.25-3.286zm0 13.036h.008v.008H12v-.008z\"\n          />\n        </svg>\n        <p>Unable to load site</p>\n      </div>\n      <span class=\"explanation\">\n        Please try again later. If you are using a VPN, try turning it off.\n        Check the\n        <a href=\"https://status.openai.com/\" target=\"_new\">status page</a> for\n        information on outages.\n      </span>\n      <br />\n      <span class=\"explanation\"> [IP:152.104.28.129 | Ray ID:9db3096fef015c88] </span>\n    </div>\n  <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML=\"window.__CF$cv$params={r:'9db3096fef015c88',t:'MTc3MzMyMTAwMw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);\";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>\n</html>\n"))
+mcp: codex_apps failed: MCP client for `codex_apps` failed to start: MCP startup failed: handshaking with MCP server failed: Send message error Transport [rmcp::transport::worker::WorkerTransport<rmcp::transport::streamable_http_client::StreamableHttpClientWorker<codex_rmcp_client::rmcp_client::StreamableHttpResponseClient>>] error: Unexpected content type: Some("text/html; charset=UTF-8; body: <html>\n  <head>\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n    <style global>body{font-family:Arial,Helvetica,sans-serif}.container{align-items:center;display:flex;flex-direction:column;height:100%;justify-content:center;width:100%}@keyframes enlarge-appear{0%{opacity:0;transform:scale(75%) rotate(-90deg)}to{opacity:1;transform:scale(100%) rotate(0deg)}}.logo{color:#8e8ea0;padding-bottom:1.5rem}.scale-appear{animation:enlarge-appear .4s ease-out}@media (min-width:768px){.scale-appear{height:48px;width:48px}}.data:empty{display:none}.data{border-radius:5px;color:#8e8ea0;max-width:420px;text-align:center;width:100%}.data ul{list-style:none;padding:0}.blocked-icon{color:#ef4444}.message{align-items:center;display:flex;font-size:1.5rem;gap:1rem;justify-content:center}.explanation{font-size:.9rem;line-height:1.5;max-width:420px;opacity:50%;text-align:center;width:100%}.explanation a{color:#000}@media (prefers-color-scheme:dark){body{background-color:#343541;color:#eee}.logo{color:#acacbe}.explanation a{color:#fff}}</style>\n  </head>\n  <body>\n    <div class=\"container\">\n      <div class=\"logo\">\n        <svg\n          width=\"41\"\n          height=\"41\"\n          viewBox=\"0 0 41 41\"\n          fill=\"none\"\n          xmlns=\"http://www.w3.org/2000/svg\"\n          strokeWidth=\"2\"\n          class=\"scale-appear\"\n        >\n          <path\n            d=\"M37.5324 16.8707C37.9808 15.5241 38.1363 14.0974 37.9886 12.6859C37.8409 11.2744 37.3934 9.91076 36.676 8.68622C35.6126 6.83404 33.9882 5.3676 32.0373 4.4985C30.0864 3.62941 27.9098 3.40259 25.8215 3.85078C24.8796 2.7893 23.7219 1.94125 22.4257 1.36341C21.1295 0.785575 19.7249 0.491269 18.3058 0.500197C16.1708 0.495044 14.0893 1.16803 12.3614 2.42214C10.6335 3.67624 9.34853 5.44666 8.6917 7.47815C7.30085 7.76286 5.98686 8.3414 4.8377 9.17505C3.68854 10.0087 2.73073 11.0782 2.02839 12.312C0.956464 14.1591 0.498905 16.2988 0.721698 18.4228C0.944492 20.5467 1.83612 22.5449 3.268 24.1293C2.81966 25.4759 2.66413 26.9026 2.81182 28.3141C2.95951 29.7256 3.40701 31.0892 4.12437 32.3138C5.18791 34.1659 6.8123 35.6322 8.76321 36.5013C10.7141 37.3704 12.8907 37.5973 14.9789 37.1492C15.9208 38.2107 17.0786 39.0587 18.3747 39.6366C19.6709 40.2144 21.0755 40.5087 22.4946 40.4998C24.6307 40.5054 26.7133 39.8321 28.4418 38.5772C30.1704 37.3223 31.4556 35.5506 32.1119 33.5179C33.5027 33.2332 34.8167 32.6547 35.9659 31.821C37.115 30.9874 38.0728 29.9178 38.7752 28.684C39.8458 26.8371 40.3023 24.6979 40.0789 22.5748C39.8556 20.4517 38.9639 18.4544 37.5324 16.8707ZM22.4978 37.8849C20.7443 37.8874 19.0459 37.2733 17.6994 36.1501C17.7601 36.117 17.8666 36.0586 17.936 36.0161L25.9004 31.4156C26.1003 31.3019 26.2663 31.137 26.3813 30.9378C26.4964 30.7386 26.5563 30.5124 26.5549 30.2825V19.0542L29.9213 20.998C29.9389 21.0068 29.9541 21.0198 29.9656 21.0359C29.977 21.052 29.9842 21.0707 29.9867 21.0902V30.3889C29.9842 32.375 29.1946 34.2791 27.7909 35.6841C26.3872 37.0892 24.4838 37.8806 22.4978 37.8849ZM6.39227 31.0064C5.51397 29.4888 5.19742 27.7107 5.49804 25.9832C5.55718 26.0187 5.66048 26.0818 5.73461 26.1244L13.699 30.7248C13.8975 30.8408 14.1233 30.902 14.3532 30.902C14.583 30.902 14.8088 30.8408 15.0073 30.7248L24.731 25.1103V28.9979C24.7321 29.0177 24.7283 29.0376 24.7199 29.0556C24.7115 29.0736 24.6988 29.0893 24.6829 29.1012L16.6317 33.7497C14.9096 34.7416 12.8643 35.0097 10.9447 34.4954C9.02506 33.9811 7.38785 32.7263 6.39227 31.0064ZM4.29707 13.6194C5.17156 12.0998 6.55279 10.9364 8.19885 10.3327C8.19885 10.4013 8.19491 10.5228 8.19491 10.6071V19.808C8.19351 20.0378 8.25334 20.2638 8.36823 20.4629C8.48312 20.6619 8.64893 20.8267 8.84863 20.9404L18.5723 26.5542L15.206 28.4979C15.1894 28.5089 15.1703 28.5155 15.1505 28.5173C15.1307 28.5191 15.1107 28.516 15.0924 28.5082L7.04046 23.8557C5.32135 22.8601 4.06716 21.2235 3.55289 19.3046C3.03862 17.3858 3.30624 15.3413 4.29707 13.6194ZM31.955 20.0556L22.2312 14.4411L25.5976 12.4981C25.6142 12.4872 25.6333 12.4805 25.6531 12.4787C25.6729 12.4769 25.6928 12.4801 25.7111 12.4879L33.7631 17.1364C34.9967 17.849 36.0017 18.8982 36.6606 20.1613C37.3194 21.4244 37.6047 22.849 37.4832 24.2684C37.3617 25.6878 36.8382 27.0432 35.9743 28.1759C35.1103 29.3086 33.9415 30.1717 32.6047 30.6641C32.6047 30.5947 32.6047 30.4733 32.6047 30.3889V21.188C32.6066 20.9586 32.5474 20.7328 32.4332 20.5338C32.319 20.3348 32.154 20.1698 31.955 20.0556ZM35.3055 15.0128C35.2464 14.9765 35.1431 14.9142 35.069 14.8717L27.1045 10.2712C26.906 10.1554 26.6803 10.0943 26.4504 10.0943C26.2206 10.0943 25.9948 10.1554 25.7963 10.2712L16.0726 15.8858V11.9982C16.0715 11.9783 16.0753 11.9585 16.0837 11.9405C16.0921 11.9225 16.1048 11.9068 16.1207 11.8949L24.1719 7.25025C25.4053 6.53903 26.8158 6.19376 28.2383 6.25482C29.6608 6.31589 31.0364 6.78077 32.2044 7.59508C33.3723 8.40939 34.2842 9.53945 34.8334 10.8531C35.3826 12.1667 35.5464 13.6095 35.3055 15.0128ZM14.2424 21.9419L10.8752 19.9981C10.8576 19.9893 10.8423 19.9763 10.8309 19.9602C10.8195 19.9441 10.8122 19.9254 10.8098 19.9058V10.6071C10.8107 9.18295 11.2173 7.78848 11.9819 6.58696C12.7466 5.38544 13.8377 4.42659 15.1275 3.82264C16.4173 3.21869 17.8524 2.99464 19.2649 3.1767C20.6775 3.35876 22.0089 3.93941 23.1034 4.85067C23.0427 4.88379 22.937 4.94215 22.8668 4.98473L14.9024 9.58517C14.7025 9.69878 14.5366 9.86356 14.4215 10.0626C14.3065 10.2616 14.2466 10.4877 14.2479 10.7175L14.2424 21.9419ZM16.071 17.9991L20.4018 15.4978L24.7325 17.9975V22.9985L20.4018 25.4983L16.071 22.9985V17.9991Z\"\n            fill=\"currentColor\"\n          />\n        </svg>\n      </div>\n      <div class=\"message\">\n        <svg\n          xmlns=\"http://www.w3.org/2000/svg\"\n          fill=\"none\"\n          width=\"24\"\n          height=\"24\"\n          viewBox=\"0 0 24 24\"\n          stroke-width=\"1.5\"\n          stroke=\"currentColor\"\n          class=\"blocked-icon\"\n        >\n          <path\n            stroke-linecap=\"round\"\n            stroke-linejoin=\"round\"\n            d=\"M12 9v3.75m0-10.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.75c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.57-.598-3.75h-.152c-3.196 0-6.1-1.249-8.25-3.286zm0 13.036h.008v.008H12v-.008z\"\n          />\n        </svg>\n        <p>Unable to load site</p>\n      </div>\n      <span class=\"explanation\">\n        Please try again later. If you are using a VPN, try turning it off.\n        Check the\n        <a href=\"https://status.openai.com/\" target=\"_new\">status page</a> for\n        information on outages.\n      </span>\n      <br />\n      <span class=\"explanation\"> [IP:152.104.28.129 | Ray ID:9db3096fef015c88] </span>\n    </div>\n  <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML=\"window.__CF$cv$params={r:'9db3096fef015c88',t:'MTc3MzMyMTAwMw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);\";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>\n</html>\n"), when send initialize request
+mcp startup: failed: codex_apps
+codex
+Using `review-correctness` directly. I’m opening the skill instructions and the target diff, then I’ll inspect the changed code for correctness issues and write the JSON payload to the requested path.
+exec
+/usr/bin/bash -lc "sed -n '1,260p' /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/66917.diff" in /mnt/data/joechenrh/raasexec
+/usr/bin/bash -lc "sed -n '1,220p' /mnt/data/joechenrh/raas/ai-engineer/skills/review-correctness/SKILL.md" in /mnt/data/joechenrh/raas succeeded in 0ms:
+diff --git a/errors.toml b/errors.toml
+index 403b98a097062..778394b1e11cc 100644
+--- a/errors.toml
++++ b/errors.toml
+@@ -336,6 +336,11 @@ error = '''
+ stream task has no storage
+ '''
+ 
++["Import:ErrCastValue"]
++error = '''
++Value conversion failed for column '%s'. Expected type: %s, received value: %s. Reason: %s.
++'''
++
+ ["Ingest:EpochNotMatch"]
+ error = '''
+ epoch not match
+diff --git a/pkg/executor/importer/BUILD.bazel b/pkg/executor/importer/BUILD.bazel
+index 713806ffda514..5a686bcd9a04a 100644
+--- a/pkg/executor/importer/BUILD.bazel
++++ b/pkg/executor/importer/BUILD.bazel
+ succeeded in 0ms:
+---
+name: review-correctness
+description: Use when reviewing pull requests for functional correctness, invariant preservation, state integrity, concurrency safety, and regression risk before merge.
+---
+
+# Review Correctness
+
+## Overview
+
+Use this skill to identify correctness issues in behavior-changing pull requests.
+Focus on whether the code does the right thing under normal, edge, and failure conditions.
+
+This skill covers correctness discovery only.
+After findings are identified, hand off output rendering to [review-output-format](../review-output-format/SKILL.md).
+
+This is a static-analysis-first review flow.
+Do not run build/test commands directly as part of this skill.
+
+## Input
+
+codex
+I have the review skill and the diff. Next I’m reading the correctness checklist, the output format contract, and the touched code paths around the new cast-error handling to verify behavior against existing invariants.
+exec
+/usr/bin/bash -lc "sed -n '1,260p' /mnt/data/joechenrh/raas/ai-engineer/skills/review-output-format/SKILL.md" in /mnt/data/joechenrh/raasexec
+/usr/bin/bash -lc "sed -n '1,260p' /mnt/data/joechenrh/raas/ai-engineer/skills/review-correctness/references/correctness-checklist.md" in /mnt/data/joechenrh/raas succeeded in 0ms:
+---
+name: review-output-format
+description: Use when rendering review output, including severity ordering, required rubric fields, and mode-specific comment structure.
+---
+
+# Review Output Format
+
+## Overview
+
+Use this skill to format final review output after findings are already identified.
+It defines required structure for review findings.
+
+## Global Contract
+
+- Output must be exactly one valid JSON object (no Markdown headings, lists, or code fences).
+- The top-level object must include a `findings` array.
+- Every review finding must appear exactly once inside `findings`.
+- Do not repeat the attribution line inside individual finding objects.
+- One finding = one actionable issue.
+- Sort `findings` by risk (highest risk first).
+ succeeded in 0ms:
+# Correctness (Extended) Checklist
+
+## Core Invariants and Contracts
+
+- Core invariants are explicitly documented near the code and tests that enforce them.
+- Preconditions are validated before executing core logic at key boundaries.
+- Postconditions are checked after mutation points at key boundaries.
+- Cross-component invariants are validated (for example SQL layer vs storage layer).
+- Assertions guard impossible or forbidden states.
+- Determinism is preserved (`same input + same snapshot -> same output`).
+- Idempotency is preserved for retries and duplicate requests.
+- Crash-consistency invariants are preserved.
+- No invariant relies on timing assumptions alone.
+- Invariant checks exist in tests, not only comments.
+- Regression tests cover previously violated invariants.
+
+## Business Logic
+
+- Behavior matches stated requirements and acceptance criteria.
+- Domain rules are enforced in the right layer (not bypassable by alternate paths).
+exec
+/usr/bin/bash -lc "sed -n '300,420p' /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/backend/kv/base.go" in /mnt/data/joechenrh/raas succeeded in 0ms:
+	}
+	return value, err
+}
+
+// IsAutoRandomCol checks if the column is auto random column.
+func (e *BaseKVEncoder) IsAutoRandomCol(col *model.ColumnInfo) bool {
+	return e.table.Meta().ContainsAutoRandomBits() && col.ID == e.AutoRandomColID
+}
+
+// EvalGeneratedColumns evaluates the generated columns.
+func (e *BaseKVEncoder) EvalGeneratedColumns(record []types.Datum,
+	cols []*table.Column) (errCol *model.ColumnInfo, err error) {
+	return evalGeneratedColumns(e.SessionCtx, record, cols, e.GenCols)
+}
+
+func datumToValueStringForCastError(d types.Datum) string {
+	if d.Kind() == types.KindBytes {
+		// types.DatumsToStringSmart only applies its printability detection to KindString.
+		// Treat bytes as a string to get a stable, printable representation (or hex literal).
+		d = types.NewStringDatum(d.GetString())
+exec
+/usr/bin/bash -lc "sed -n '160,240p' /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/executor/importer/kv_encode.go" in /mnt/data/joechenrh/raas succeeded in 0ms:
+		}
+
+		row = append(row, parserData[i])
+	}
+	for i := range en.columnAssignments {
+		// eval expression of `SET` clause
+		d, err := en.columnAssignments[i].Eval(en.SessionCtx.GetExprCtx().GetEvalCtx(), chunk.Row{})
+		if err != nil {
+			return nil, err
+		}
+		row = append(row, d)
+	}
+
+	// a new row buffer will be allocated in getRow
+	newRow, err := en.getRow(row, hasValue, rowID)
+	if err != nil {
+		return nil, err
+	}
+
+	return newRow, nil
+exec
+/usr/bin/bash -lc "sed -n '1,180p' /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors.go" in /mnt/data/joechenrh/raas succeeded in 0ms:
+// Copyright 2022 PingCAP, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package common
+
+import (
+	"fmt"
+	"io"
+	"strings"
+exec
+/usr/bin/bash -lc "rg -n \"ErrCastValue|LogKVConvertFailed\\(|datumToValueStringForCastError|DatumsToStringSmart\\(\" /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg -g'*.go'" in /mnt/data/joechenrh/raas succeeded in 0ms:
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors_test.go:84:	err = ErrCastValue.GenWithStackByArgs("c1", "tinyint(4)", "\"BAD\"", "out of range")
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors_test.go:87:	require.True(t, berrors.Is(normalizedErr, ErrCastValue))
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors_test.go:88:	require.EqualError(t, normalizedErr, "[Import:ErrCastValue]Value conversion failed for column 'c1'. Expected type: tinyint(4), received value: \"BAD\". Reason: out of range.")
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors_test.go:102:func TestErrCastValueRedact(t *testing.T) {
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors_test.go:107:	err := ErrCastValue.GenWithStackByArgs("c1", "tinyint(4)", "\"BAD\"", "out of range")
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors_test.go:108:	require.EqualError(t, err, "[Import:ErrCastValue]Value conversion failed for column 'c1'. Expected type: tinyint(4), received value: \"BAD\". Reason: out of range.")
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors_test.go:111:	err = ErrCastValue.GenWithStackByArgs("c1", "tinyint(4)", "\"BAD\"", "out of range")
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors_test.go:112:	require.EqualError(t, err, "[Import:ErrCastValue]Value conversion failed for column 'c1'. Expected type: tinyint(4), received value: ?. Reason: out of range.")
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors_test.go:115:	err = ErrCastValue.GenWithStackByArgs("c1", "tinyint(4)", "\"BAD\"", "out of range")
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors_test.go:116:	require.EqualError(t, err, "[Import:ErrCastValue]Value conversion failed for column 'c1'. Expected type: tinyint(4), received value: ‹\"BAD\"›. Reason: out of range.")
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors.go:91:	ErrCastValue         = errors.Normalize(
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors.go:93:		errors.RFCCodeText("Import:ErrCastValue"),
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/backend/kv/sql2kv_test.go:102:	require.Contains(t, err.Error(), "[Import:ErrCastValue]Value conversion failed for column 'c1'. Expected type: tinyint(4), received value: 10000000. Reason:")
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/backend/kv/sql2kv_test.go:112:	require.Contains(t, err.Error(), "[Import:ErrCastValue]Value conversion failed for column '_tidb_rowid'. Expected type: bigint(20), received value: \"invalid-pk\". Reason:")
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/backend/kv/base_test.go:34:func TestLogKVConvertFailed(t *testing.T) {
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/backend/kv/base_test.go:68:	err = baseKVEncoder.LogKVConvertFailed(rows, 6, c1, err)
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/backend/kv/base_test.go:79:	require.Equal(t, "\"hello\"", datumToValueStringForCastError(types.NewStringDatum("hello")))
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/backend/kv/base_test.go:80:	require.Equal(t, "0x000102", datumToValueStringForCastError(types.NewBytesDatum([]byte{0x00, 0x01, 0x02})))
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/backend/kv/sql2kv.go:236:			return nil, kvcodec.LogKVConvertFailed(row, j, col.ToInfo(), err)
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/backend/kv/sql2kv.go:254:			return nil, kvcodec.LogKVConvertFailed(row, j, ExtraHandleColumnInfo, err)
+exec
+/usr/bin/bash -lc 'git -C /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917 diff --stat -- 66917.diff pkg/executor/importer/kv_encode.go pkg/lightning/backend/kv/base.go pkg/lightning/common/errors.go pkg/executor/importer/kv_encode_test.go pkg/lightning/backend/kv/base_test.go pkg/lightning/backend/kv/sql2kv_test.go errors.toml' in /mnt/data/joechenrh/raas succeeded in 0ms:
+
+codex
+I’m checking the datum stringification path and existing error-normalization behavior now. The main risk area is whether the new helper changes semantics for binary values or loses important context that callers currently depend on.
+exec
+/usr/bin/bash -lc "sed -n '2440,2495p' /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/types/datum.go" in /mnt/data/joechenrh/raas succeeded in 0ms:
+
+// DatumsToString converts several datums to formatted string.
+func DatumsToString(datums []Datum, handleSpecialValue bool) (string, error) {
+	return datumsToString(datums, handleSpecialValue, false)
+}
+
+// DatumsToStringSmart is like DatumsToString, but with smart detection of non-printable data
+func DatumsToStringSmart(datums []Datum, handleSpecialValue bool) (string, error) {
+	return datumsToString(datums, handleSpecialValue, true)
+}
+
+func datumsToString(datums []Datum, handleSpecialValue bool, binaryAsHex bool) (string, error) {
+	n := len(datums)
+	builder := &strings.Builder{}
+	builder.Grow(8 * n)
+	if n > 1 {
+		builder.WriteString("(")
+	}
+	for i, datum := range datums {
+		if i > 0 {
+exec
+/usr/bin/bash -lc "sed -n '220,280p' /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/backend/kv/sql2kv.go" in /mnt/data/joechenrh/raas succeeded in 0ms:
+	// when generating error such as mysql.ErrDataOutOfRange, the data will be part of the error, causing the buf
+	// unable to release. So we truncate the warnings here.
+	defer kvcodec.TruncateWarns()
+	var value types.Datum
+	var err error
+
+	record := kvcodec.GetOrCreateRecord()
+	for i, col := range kvcodec.Columns {
+		var theDatum *types.Datum
+		j := columnPermutation[i]
+		if j >= 0 && j < len(row) {
+			theDatum = &row[j]
+		}
+		// TODO: consider move the cast before calling ProcessColDatum. see https://github.com/pingcap/tidb/pull/60397/files#r2058032695
+		value, err = kvcodec.ProcessColDatum(col, rowID, theDatum, true)
+		if err != nil {
+			return nil, kvcodec.LogKVConvertFailed(row, j, col.ToInfo(), err)
+		}
+
+		record = append(record, value)
+exec
+/usr/bin/bash -lc "sed -n '1,180p' /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors_test.go" in /mnt/data/joechenrh/raas succeeded in 0ms:
+// Copyright 2022 PingCAP, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package common
+
+import (
+	"fmt"
+	"io"
+	"testing"
+exec
+/usr/bin/bash -lc "sed -n '1,180p' /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/backend/kv/base_test.go" in /mnt/data/joechenrh/raas succeeded in 0ms:
+// Copyright 2023 PingCAP, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package kv
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+exec
+/usr/bin/bash -lc "rg -n \"LogKVConvertFailed\\(|ErrCastValue|failed to cast value as|NormalizeError\\(|NormalizeOrWrapErr\\(\" /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917 -g'*.go'" in /mnt/data/joechenrh/raas succeeded in 0ms:
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/mydump/loader.go:310:		return nil, common.NormalizeError(err)
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/mydump/loader.go:314:		return nil, common.NormalizeError(err)
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors_test.go:27:func TestNormalizeError(t *testing.T) {
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors_test.go:28:	err := NormalizeError(nil)
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors_test.go:30:	err = NormalizeError(io.EOF)
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors_test.go:73:		normalizedErr := NormalizeError(err)
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors_test.go:84:	err = ErrCastValue.GenWithStackByArgs("c1", "tinyint(4)", "\"BAD\"", "out of range")
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors_test.go:85:	normalizedErr := NormalizeError(err)
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors_test.go:87:	require.True(t, berrors.Is(normalizedErr, ErrCastValue))
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors_test.go:88:	require.EqualError(t, normalizedErr, "[Import:ErrCastValue]Value conversion failed for column 'c1'. Expected type: tinyint(4), received value: \"BAD\". Reason: out of range.")
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors_test.go:91:func TestNormalizeOrWrapErr(t *testing.T) {
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors_test.go:92:	err := NormalizeOrWrapErr(ErrInvalidArgument, nil)
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors_test.go:94:	err = NormalizeOrWrapErr(ErrInvalidArgument, ErrInvalidConfig.GenWithStack("tikv-importer.backend must not be empty!"))
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors_test.go:97:	err = NormalizeOrWrapErr(ErrInvalidArgument, io.EOF)
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors_test.go:102:func TestErrCastValueRedact(t *testing.T) {
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors_test.go:107:	err := ErrCastValue.GenWithStackByArgs("c1", "tinyint(4)", "\"BAD\"", "out of range")
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors_test.go:108:	require.EqualError(t, err, "[Import:ErrCastValue]Value conversion failed for column 'c1'. Expected type: tinyint(4), received value: \"BAD\". Reason: out of range.")
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors_test.go:111:	err = ErrCastValue.GenWithStackByArgs("c1", "tinyint(4)", "\"BAD\"", "out of range")
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors_test.go:112:	require.EqualError(t, err, "[Import:ErrCastValue]Value conversion failed for column 'c1'. Expected type: tinyint(4), received value: ?. Reason: out of range.")
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors_test.go:115:	err = ErrCastValue.GenWithStackByArgs("c1", "tinyint(4)", "\"BAD\"", "out of range")
+exec
+/usr/bin/bash -lc 'git -C /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917 blame -L 329,362 -- pkg/lightning/backend/kv/base.go' in /mnt/data/joechenrh/raas succeeded in 0ms:
+^7829e08 (gmhdbjd 2026-03-12 19:07:52 +0800 329) func (e *BaseKVEncoder) LogKVConvertFailed(row []types.Datum, j int, colInfo *model.ColumnInfo, err error) error {
+^7829e08 (gmhdbjd 2026-03-12 19:07:52 +0800 330) 	var original types.Datum
+^7829e08 (gmhdbjd 2026-03-12 19:07:52 +0800 331) 	if 0 <= j && j < len(row) {
+^7829e08 (gmhdbjd 2026-03-12 19:07:52 +0800 332) 		original = row[j]
+^7829e08 (gmhdbjd 2026-03-12 19:07:52 +0800 333) 		row = row[j : j+1]
+^7829e08 (gmhdbjd 2026-03-12 19:07:52 +0800 334) 	}
+^7829e08 (gmhdbjd 2026-03-12 19:07:52 +0800 335) 
+^7829e08 (gmhdbjd 2026-03-12 19:07:52 +0800 336) 	e.logger.Error("kv convert failed",
+^7829e08 (gmhdbjd 2026-03-12 19:07:52 +0800 337) 		zap.Array("original", RowArrayMarshaller(row)),
+^7829e08 (gmhdbjd 2026-03-12 19:07:52 +0800 338) 		zap.Int("originalCol", j),
+^7829e08 (gmhdbjd 2026-03-12 19:07:52 +0800 339) 		zap.String("colName", colInfo.Name.O),
+^7829e08 (gmhdbjd 2026-03-12 19:07:52 +0800 340) 		zap.Stringer("colType", &colInfo.FieldType),
+^7829e08 (gmhdbjd 2026-03-12 19:07:52 +0800 341) 		log.ShortError(err),
+^7829e08 (gmhdbjd 2026-03-12 19:07:52 +0800 342) 	)
+^7829e08 (gmhdbjd 2026-03-12 19:07:52 +0800 343) 
+^7829e08 (gmhdbjd 2026-03-12 19:07:52 +0800 344) 	if len(original.GetString()) >= maxLogLength {
+^7829e08 (gmhdbjd 2026-03-12 19:07:52 +0800 345) 		originalPrefix := original.GetString()[0:1024] + " (truncated)"
+^7829e08 (gmhdbjd 2026-03-12 19:07:52 +0800 346) 		e.logger.Error("failed to convert kv value", logutil.RedactAny("origVal", originalPrefix),
+^7829e08 (gmhdbjd 2026-03-12 19:07:52 +0800 347) 			zap.Stringer("fieldType", &colInfo.FieldType), zap.String("column", colInfo.Name.O),
+^7829e08 (gmhdbjd 2026-03-12 19:07:52 +0800 348) 			zap.Int("columnID", j+1))
+exec
+/usr/bin/bash -lc 'git -C /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917 show HEAD''^:pkg/lightning/backend/kv/base.go | sed -n '"'329,360p'" in /mnt/data/joechenrh/raas succeeded in 0ms:
+fatal: invalid object name 'HEAD^'.
+exec
+/usr/bin/bash -lc 'git -C /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917 show HEAD''^:pkg/executor/importer/kv_encode.go | sed -n '"'183,205p'" in /mnt/data/joechenrh/raas succeeded in 0ms:
+fatal: invalid object name 'HEAD^'.
+codex
+The worktree looks like a single detached commit, so I can’t diff against `HEAD^` directly there. I’m using the patch plus surrounding code instead, and I’m checking for downstream callers that may rely on the old wrapped error identity.
+exec
+/usr/bin/bash -lc 'git -C /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917 rev-parse HEAD && git -C /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917 branch -a --contains HEAD' in /mnt/data/joechenrh/raas succeeded in 0ms:
+7829e088080538b946501283d47210948fc80102
+* (no branch)
++ pr-66917
+exec
+/usr/bin/bash -lc "sed -n '200,260p' /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors.go" in /mnt/data/joechenrh/raas succeeded in 0ms:
+		}
+		causeErr := normalizedErr.Unwrap()
+		normalizedErr = errors.Normalize(normalizedErr.GetMsg(), errors.RFCCodeText(string(errID)))
+		if causeErr != nil {
+			normalizedErr = normalizedErr.Wrap(causeErr)
+		}
+		err = maybeAddStack(normalizedErr)
+	} else {
+		err = ErrUnknown.Wrap(err)
+	}
+	// TODO: Do we need to optimize the output error messages for aws errors or gRPC errors.
+	return err
+}
+
+// NormalizeOrWrapErr tries to normalize err. If the returned error is ErrUnknown, wraps it with the given rfcErr.
+func NormalizeOrWrapErr(rfcErr *errors.Error, err error, args ...any) error {
+	if err == nil {
+		return nil
+	}
+	if IsContextCanceledError(err) {
+exec
+/usr/bin/bash -lc "rg -n \"failed to cast value as|ErrCastValue|column .*received value|NormalizeError\\(err\\)\" /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/lightning /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg -g'*.go'" in /mnt/data/joechenrh/raas succeeded in 0ms:
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/lightning/pkg/server/lightning.go:569:			return nil, nil, common.NormalizeError(err)
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/lightning/pkg/server/lightning.go:573:			return nil, nil, common.NormalizeError(err)
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/executor/importer/kv_encode_test.go:121:	require.Contains(t, err.Error(), "[Import:ErrCastValue]Value conversion failed for column 'c1'. Expected type: tinyint(4), received value: 10000000. Reason: [types:1690]constant 10000000 overflows tinyint")
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/executor/importer/kv_encode_test.go:154:	require.Contains(t, err.Error(), "[Import:ErrCastValue]Value conversion failed for column 'c1'. Expected type: enum('a','b'), received value: \"c\". Reason:")
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/lightning/pkg/importer/precheck_impl.go:226:		err := common.NormalizeError(err)
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/lightning/pkg/importer/precheck_impl.go:437:		return nil, common.NormalizeError(err)
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/mydump/loader.go:310:		return nil, common.NormalizeError(err)
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/mydump/loader.go:314:		return nil, common.NormalizeError(err)
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors_test.go:73:		normalizedErr := NormalizeError(err)
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors_test.go:84:	err = ErrCastValue.GenWithStackByArgs("c1", "tinyint(4)", "\"BAD\"", "out of range")
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors_test.go:85:	normalizedErr := NormalizeError(err)
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors_test.go:87:	require.True(t, berrors.Is(normalizedErr, ErrCastValue))
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors_test.go:88:	require.EqualError(t, normalizedErr, "[Import:ErrCastValue]Value conversion failed for column 'c1'. Expected type: tinyint(4), received value: \"BAD\". Reason: out of range.")
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors_test.go:102:func TestErrCastValueRedact(t *testing.T) {
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors_test.go:107:	err := ErrCastValue.GenWithStackByArgs("c1", "tinyint(4)", "\"BAD\"", "out of range")
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors_test.go:108:	require.EqualError(t, err, "[Import:ErrCastValue]Value conversion failed for column 'c1'. Expected type: tinyint(4), received value: \"BAD\". Reason: out of range.")
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors_test.go:111:	err = ErrCastValue.GenWithStackByArgs("c1", "tinyint(4)", "\"BAD\"", "out of range")
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors_test.go:112:	require.EqualError(t, err, "[Import:ErrCastValue]Value conversion failed for column 'c1'. Expected type: tinyint(4), received value: ?. Reason: out of range.")
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors_test.go:115:	err = ErrCastValue.GenWithStackByArgs("c1", "tinyint(4)", "\"BAD\"", "out of range")
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors_test.go:116:	require.EqualError(t, err, "[Import:ErrCastValue]Value conversion failed for column 'c1'. Expected type: tinyint(4), received value: ‹\"BAD\"›. Reason: out of range.")
+exec
+/usr/bin/bash -lc 'git -C /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917 log --oneline --decorate -n 5' in /mnt/data/joechenrh/raas succeeded in 0ms:
+7829e08 (grafted, HEAD, pr-66917) lightning, importer: update errdoc for cast error
+exec
+/usr/bin/bash -lc 'git -C /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917 show --summary --stat --oneline HEAD' in /mnt/data/joechenrh/raas succeeded in 684ms:
+7829e08 lightning, importer: update errdoc for cast error
+ .agents/skills/README.md                           |     7 +
+ .agents/skills/tidb-test-diff-triage/SKILL.md      |    74 +
+ .agents/skills/tidb-test-guidelines/SKILL.md       |    60 +
+ .../references/autoid_service-case-map.md          |    12 +
+ .../references/bindinfo-case-map.md                |    30 +
+ .../references/config-case-map.md                  |    20 +
+ .../references/ddl-case-map.md                     |   217 +
+ .../references/distsql-case-map.md                 |    22 +
+ .../references/domain-case-map.md                  |    43 +
+ .../references/dxf-case-map.md                     |   123 +
+ .../references/errctx-case-map.md                  |    12 +
+ .../references/errno-case-map.md                   |    14 +
+ .../references/executor-case-map.md                |   445 +
+ .../references/expression-case-map.md              |   118 +
+ .../references/extension-case-map.md               |    17 +
+ .../references/importsdk-case-map.md               |    18 +
+ .../references/infoschema-case-map.md              |    67 +
+ .../references/ingestor-case-map.md                |    13 +
+ .../references/keyspace-case-map.md                |    12 +
+codex
+I’m probing one concrete regression vector: the old path wrapped the original cast error, while the new path converts it into a standalone `ErrCastValue` with the reason flattened to text. If any caller classifies import failures by underlying cause, that behavior changes even though the message looks better.
+exec
+/usr/bin/bash -lc "rg -n \"Cause\\(|Unwrap\\(|errors\\.Cause\\(|errors\\.ErrorEqual\\(|terror\\.ErrorEqual\\(|berrors\\.Is\\(|ErrDataTooLong|ErrDataOutOfRange|ErrTruncated|overflows tinyint|ErrCastValue\" /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/lightning /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg -g'*.go' | sed -n '1,260p'" in /mnt/data/joechenrh/raas succeeded in 0ms:
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/ddl/column_test.go:325:		if terror.ErrorEqual(err, kv.ErrNotExist) {
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/ddl/backfilling_import_cloud.go:181:	tErr, ok := errors.Cause(err).(*terror.Error)
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/session/upgrade_def.go:740:		if terror.ErrorEqual(err, ignorableErr) {
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/session/upgrade_def.go:768:	if terror.ErrorEqual(err, plannererrors.ErrUnknownColumn) {
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/ddl/column.go:777:		recordWarning = errors.Cause(w.reformatErrors(warn[0].Err)).(*terror.Error)
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/ddl/column.go:820:	if types.ErrTruncated.Equal(err) || types.ErrDataTooLong.Equal(err) {
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/ddl/column.go:822:		err = types.ErrTruncated.GenWithStack("Data truncated for column '%s', value is '%s'", w.oldColInfo.Name, dStr)
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/ddl/backfilling.go:970:			err = context.Cause(ctx)
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/infoschema/test/clustertablestest/tables_test.go:672:	require.True(t, terror.ErrorEqual(infoschema.ErrTableNotExists, err))
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/ddl/add_column.go:452:		if err != nil && terror.ErrorEqual(types.ErrTooBigFieldLength, err) {
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/ddl/db_test.go:931:			tErr := errors.Cause(warnErr).(*terror.Error)
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/bindinfo/binding_operator_test.go:783:	require.True(t, terror.ErrorEqual(err, parser.ErrParse))
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/ddl/tiflash_replica_test.go:345:		require.True(t, terror.ErrorEqual(domain.ErrInfoSchemaChanged, err))
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/ddl/tiflash_replica_test.go:353:	require.True(t, terror.ErrorEqual(domain.ErrInfoSchemaChanged, err))
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/session/test/vars/vars_test.go:335:	require.True(t, terror.ErrorEqual(err, variable.ErrUnknownTimeZone))
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/ddl/db_table_test.go:387:	require.True(t, terror.ErrorEqual(err, infoschema.ErrTableExists))
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/ddl/db_table_test.go:469:	require.True(t, terror.ErrorEqual(err, infoschema.ErrTableLocked))
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/ddl/db_table_test.go:516:	require.True(t, terror.ErrorEqual(err, infoschema.ErrTableLocked))
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/ddl/db_table_test.go:523:	require.True(t, terror.ErrorEqual(err, infoschema.ErrTableLocked))
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/ddl/db_table_test.go:525:	require.True(t, terror.ErrorEqual(err, infoschema.ErrTableLocked))
+exec
+/usr/bin/bash -lc "rg -n \"Encode\\(.*\\)|encode kv error|convert failed|column .*failed|error manager|error summary|type:.*ErrCastValue\" /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/lightning /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg -g'*.go' | sed -n '1,260p'" in /mnt/data/joechenrh/raas succeeded in 0ms:
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/util/logutil/consistency/reporter.go:210:				fs = append(fs, zap.String("row_mvcc_"+strconv.Itoa(i), redact.String(rmode, GetMvccByKey(store, r.HandleEncode(hd), DecodeRowMvccData(r.Tbl)))))
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/util/logutil/consistency/reporter.go:213:				fs = append(fs, zap.String("index_mvcc_"+strconv.Itoa(i), redact.String(rmode, GetMvccByKey(store, r.IndexEncode(&missRowIdx[i]), DecodeIndexMvccData(r.Idx)))))
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/util/logutil/consistency/reporter.go:236:			fs = append(fs, zap.String("row_mvcc", redact.String(rmode, GetMvccByKey(store, r.HandleEncode(handle), DecodeRowMvccData(r.Tbl)))))
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/util/logutil/consistency/reporter.go:237:			fs = append(fs, zap.String("index_mvcc", redact.String(rmode, GetMvccByKey(store, r.IndexEncode(idxRow), DecodeIndexMvccData(r.Idx)))))
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/util/logutil/consistency/reporter.go:293:		hdlMvccResp, err := GetMVCCByKeyResp(store, r.HandleEncode(handle))
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/util/logutil/consistency/reporter.go:298:			idxMvccResp, err := GetMVCCByKeyResp(store, r.IndexEncode(idxRow))
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/util/logutil/consistency/reporter.go:304:			fs = append(fs, zap.String("row_mvcc", redact.String(rmode, GetMvccByKey(store, r.HandleEncode(handle), DecodeRowMvccData(r.Tbl)))))
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/util/logutil/consistency/reporter.go:306:				fs = append(fs, zap.String("index_mvcc", redact.String(rmode, GetMvccByKey(store, r.IndexEncode(idxRow), DecodeIndexMvccData(r.Idx)))))
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/server/tests/tls/tls_test.go:112:	err = pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/server/tests/tls/tls_test.go:125:	err = pem.Encode(keyOut, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(privateKey)})
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/parser/ast/misc.go:3850:		// In go1.25.5, url.Values.Encode() will sort the keys.
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/parser/ast/misc.go:3851:		u.RawQuery = values.Encode()
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/util/ranger/types.go:250:func (ran *Range) Encode(ec errctx.Context, loc *time.Location, lowBuffer, highBuffer []byte) (_, _ []byte, err error) {
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/util/dbutil/table_test.go:207:func TestSchemacmpEncode(t *testing.T) {
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/util/dbutil/table_test.go:212:	table := schemacmp.Encode(tableInfo)
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/util/httputil/http_test.go:42:		err := json.NewEncoder(res).Encode(request)
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/store/mockstore/unistore/tikv/mvcc.go:1131:	return encoder.Encode(time.UTC, colIDs, datums, nil, buf)
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/sessionctx/variable/slow_log.go:513:		// Note that the Encode() will append a '\n' so we don't need to add another.
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/sessionctx/variable/slow_log.go:514:		err := jsonEncoder.Encode(logItems.Warnings)
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/util/plancodec/codec.go:433:	compressBytes := snappy.Encode(nil, input)
+exec
+/usr/bin/bash -lc "sed -n '430,520p' /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/lightning/pkg/importer/chunk_process.go" in /mnt/data/joechenrh/raas succeeded in 0ms:
+					if rc.errorMgr.ConflictRecordsRemain() <= 0 {
+						continue
+					}
+
+					dupMsg := cr.getDuplicateMessage(
+						originalTableEncoder,
+						lastRow,
+						lastOffset,
+						dupIgnoreRowsIter.UnsafeValue(),
+						t.tableInfo.Desired,
+						logger,
+					)
+					rowText := tidb.EncodeRowForRecord(ctx, t.encTable, rc.cfg.TiDB.SQLMode, lastRow.Row, cr.chunk.ColumnPermutation)
+					err = rc.errorMgr.RecordDuplicate(
+						ctx,
+						logger,
+						t.tableName,
+						cr.chunk.Key.Path,
+						newOffset,
+						dupMsg,
+exec
+/usr/bin/bash -lc "sed -n '220,360p' /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/errormanager/errormanager.go" in /mnt/data/joechenrh/raas succeeded in 0ms:
+
+// ConflictErrorsRemain returns the number of conflict errors that can be recorded.
+func (em *ErrorManager) ConflictErrorsRemain() int64 {
+	return em.conflictErrRemain.Load()
+}
+
+// ConflictRecordsRemain returns the number of errors that need be recorded.
+func (em *ErrorManager) ConflictRecordsRemain() int64 {
+	return em.conflictRecordsRemain.Load()
+}
+
+// RecordErrorOnce returns if RecordDuplicateOnce has been called. Not that this
+// method is not atomic with RecordDuplicateOnce.
+func (em *ErrorManager) RecordErrorOnce() bool {
+	return em.recordErrorOnce.Load()
+}
+
+// New creates a new error manager.
+func New(db *sql.DB, cfg *config.Config, logger log.Logger) *ErrorManager {
+	conflictErrRemain := atomic.NewInt64(cfg.Conflict.Threshold)
+exec
+/usr/bin/bash -lc "sed -n '1240,1295p' /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/lightning/pkg/importer/import.go" in /mnt/data/joechenrh/raas succeeded in 0ms:
+					continue
+				}
+				if minSafePoint > safePoint {
+					logutil.Logger(ctx).Warn("The current minimum safe point is newer than what we hold, duplicate records are at"+
+						"risk of being GC and not detectable",
+						zap.Uint64("safePoint", safePoint),
+						zap.Uint64("minSafePoint", minSafePoint),
+					)
+					safePoint = minSafePoint
+				}
+			case <-ctx.Done():
+				stopCtx, cancelFunc := context.WithTimeout(context.Background(), time.Second*5)
+				if _, err := pdCli.UpdateServiceGCSafePoint(stopCtx, serviceID, 0, safePoint); err != nil {
+					logutil.Logger(ctx).Warn("Failed to reset safe point ttl to zero", zap.Error(err))
+				}
+				// just make compiler happy
+				cancelFunc()
+				return
+			}
+		}
+exec
+/usr/bin/bash -lc "sed -n '360,470p' /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/errormanager/errormanager.go" in /mnt/data/joechenrh/raas succeeded in 0ms:
+		}
+		if err := exec.Exec(ctx, "insert type error record",
+			common.SprintfWithIdentifiers(insertIntoTypeError, em.schema),
+			em.taskID,
+			tableName,
+			path,
+			offset,
+			errMsg,
+			rowText,
+		); err != nil {
+			return multierr.Append(encodeErr, err)
+		}
+	}
+	return nil
+}
+
+// DataConflictInfo is the information of a data conflict error.
+type DataConflictInfo struct {
+	RawKey   []byte
+	RawValue []byte
+exec
+/usr/bin/bash -lc "rg -n \"RecordTypeError\\(|ErrEncodeKV|types\\.ErrOverflow|types\\.ErrTruncated|ErrDataTooLong|ErrCastValue|terror\\.ErrorEqual\\(.*encode|NormalizeError\\(.*EncodeKV|Cause\\(.*EncodeKV\" /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/lightning /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/executor /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning -g'*.go'" in /mnt/data/joechenrh/raas succeeded in 0ms:
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/errormanager/errormanager.go:328:func (em *ErrorManager) RecordTypeError(
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/executor/benchmark_test.go:2090:	err := types.ErrDataTooLong
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/executor/write.go:452:// resetErrDataTooLong reset ErrDataTooLong error msg.
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/executor/write.go:453:// types.ErrDataTooLong is produced in types.ProduceStrWithSpecifiedTp, there is no column info in there,
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/executor/write.go:455:func resetErrDataTooLong(colName string, rowIdx int, _ error) error {
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/executor/write.go:456:	newErr := types.ErrDataTooLong.FastGen("Data too long for column '%v' at row %v", colName, rowIdx)
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/executor/importer/kv_encode_test.go:121:	require.Contains(t, err.Error(), "[Import:ErrCastValue]Value conversion failed for column 'c1'. Expected type: tinyint(4), received value: 10000000. Reason: [types:1690]constant 10000000 overflows tinyint")
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/executor/importer/kv_encode_test.go:154:	require.Contains(t, err.Error(), "[Import:ErrCastValue]Value conversion failed for column 'c1'. Expected type: enum('a','b'), received value: \"c\". Reason:")
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/executor/update.go:477:	if types.ErrDataTooLong.Equal(err) {
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/executor/update.go:478:		return errors.AddStack(resetErrDataTooLong(colName.O, rowIdx+1, err))
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/executor/update.go:481:	if types.ErrOverflow.Equal(err) {
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/executor/update.go:485:	if types.ErrTruncatedWrongVal.Equal(err) && colInfo != nil && colInfo.GetType() == mysql.TypeTimestamp {
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/mydump/parquet_parser_test.go:763:	require.ErrorIs(t, types.ErrOverflow, dec.FromParquetArray(raw, 0))
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/executor/importer/chunk_process_testkit_test.go:192:		require.ErrorIs(t, err2, common.ErrEncodeKV)
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/executor/importer/chunk_process_testkit_test.go:219:		require.ErrorIs(t, processor.Process(ctx), common.ErrEncodeKV)
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/executor/importer/chunk_process.go:92:			err = common.ErrEncodeKV.Wrap(err).GenWithStackByArgs(filename, readPos)
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/executor/importer/chunk_process.go:359:			err2 := common.ErrEncodeKV.Wrap(encodeErr).GenWithStackByArgs(p.chunkName, data.startPos)
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors_test.go:84:	err = ErrCastValue.GenWithStackByArgs("c1", "tinyint(4)", "\"BAD\"", "out of range")
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors_test.go:87:	require.True(t, berrors.Is(normalizedErr, ErrCastValue))
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors_test.go:88:	require.EqualError(t, normalizedErr, "[Import:ErrCastValue]Value conversion failed for column 'c1'. Expected type: tinyint(4), received value: \"BAD\". Reason: out of range.")
+codex
+I found one likely real regression and I’m validating it against the existing redaction contract. The new error normalizes only the `received value` argument, but it injects the raw underlying cast message into `Reason`, and many cast errors already embed the same user data there.
+exec
+/usr/bin/bash -lc "sed -n '340,375p' /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/table/column.go" in /mnt/data/joechenrh/raas succeeded in 0ms:
+	return castColumnValue(strictCtx, errctx.StrictNoWarningContext, mysql.ModeNone, val, tp, "", 0, true, false)
+}
+
+// CastColumnValue casts a value based on column type with expression BuildContext
+func CastColumnValue(ctx expression.BuildContext, val types.Datum, col *model.ColumnInfo, returnErr, forceIgnoreTruncate bool) (casted types.Datum, err error) {
+	evalCtx := ctx.GetEvalCtx()
+	return castColumnValue(evalCtx.TypeCtx(), evalCtx.ErrCtx(), evalCtx.SQLMode(), val, &col.FieldType, col.Name.O, ctx.ConnectionID(), returnErr, forceIgnoreTruncate)
+}
+
+// castColumnValue casts a value based on column type.
+func castColumnValue(tc types.Context, ec errctx.Context, sqlMode mysql.SQLMode, val types.Datum, ft *types.FieldType, colName string, connID uint64, returnErr, forceIgnoreTruncate bool) (casted types.Datum, err error) {
+	casted, err = val.ConvertTo(tc, ft)
+	// TODO: make sure all truncate errors are handled by ConvertTo.
+	if returnErr && err != nil {
+		return casted, err
+	}
+	if err != nil && types.ErrTruncated.Equal(err) && ft.GetType() != mysql.TypeSet && ft.GetType() != mysql.TypeEnum {
+		str, err1 := val.ToString()
+		if err1 != nil {
+			logutil.BgLogger().Warn("Datum ToString failed", zap.Stringer("Datum", val), zap.Error(err1))
+exec
+/usr/bin/bash -lc "sed -n '90,130p' /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors_test.go" in /mnt/data/joechenrh/raasexec
+/usr/bin/bash -lc "sed -n '200,235p' /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/table/column.go" in /mnt/data/joechenrh/raas succeeded in 0ms:
+
+func TestNormalizeOrWrapErr(t *testing.T) {
+	err := NormalizeOrWrapErr(ErrInvalidArgument, nil)
+	require.NoError(t, err)
+	err = NormalizeOrWrapErr(ErrInvalidArgument, ErrInvalidConfig.GenWithStack("tikv-importer.backend must not be empty!"))
+	require.Error(t, err)
+	require.True(t, berrors.Is(err, ErrInvalidConfig))
+	err = NormalizeOrWrapErr(ErrInvalidArgument, io.EOF)
+	require.Error(t, err)
+	require.True(t, berrors.Is(err, ErrInvalidArgument))
+}
+
+func TestErrCastValueRedact(t *testing.T) {
+	originalMode := errors.RedactLogEnabled.Load()
+	t.Cleanup(func() { errors.RedactLogEnabled.Store(originalMode) })
+
+	errors.RedactLogEnabled.Store(errors.RedactLogDisable)
+	err := ErrCastValue.GenWithStackByArgs("c1", "tinyint(4)", "\"BAD\"", "out of range")
+	require.EqualError(t, err, "[Import:ErrCastValue]Value conversion failed for column 'c1'. Expected type: tinyint(4), received value: \"BAD\". Reason: out of range.")
+
+ succeeded in 0ms:
+	b = b[:length]
+	str := string(hack.String(b))
+	v.SetString(str, v.Collation())
+}
+
+// convertToIncorrectStringErr converts ErrInvalidCharacterString to ErrTruncatedWrongValueForField.
+// The first argument is the invalid character in bytes.
+func convertToIncorrectStringErr(err error, colName string) error {
+	inErr, ok := errors.Cause(err).(*errors.Error)
+	if !ok {
+		return err
+	}
+	args := inErr.Args()
+	if len(args) != 2 {
+		return err
+	}
+	invalidStrHex, ok := args[1].(string)
+	if !ok {
+		return err
+	}
+exec
+/usr/bin/bash -lc "rg -n \"GenWithStackByArgs\\(.*str\\)|Incorrect string value|Incorrect .* value|Data truncated for column|out of range|overflows\" /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/table /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/types /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/expression -g'*.go' | sed -n '1,220p'" in /mnt/data/joechenrh/raas succeeded in 0ms:
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/types/vector_test.go:106:	require.EqualError(t, err, "value -1e+39 out of range for float32")
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/types/vector_functions.go:175:			return ZeroVectorFloat32, errors.Errorf("value out of range: overflow")
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/types/vector_functions.go:178:			return ZeroVectorFloat32, errors.Errorf("value out of range: NaN")
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/types/vector_functions.go:204:			return ZeroVectorFloat32, errors.Errorf("value out of range: overflow")
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/types/vector_functions.go:207:			return ZeroVectorFloat32, errors.Errorf("value out of range: NaN")
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/types/vector_functions.go:233:			return ZeroVectorFloat32, errors.Errorf("value out of range: overflow")
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/types/vector_functions.go:236:			return ZeroVectorFloat32, errors.Errorf("value out of range: NaN")
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/types/vector.go:246:			valueError = errors.Errorf("value %v out of range for float32", v)
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/types/time.go:1039:		return ZeroDatetime, errors.Trace(ErrWrongValue.GenWithStackByArgs(DateTimeStr, str))
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/types/time.go:1046:				return ZeroDatetime, errors.Trace(ErrWrongValue.GenWithStackByArgs(DateTimeStr, str))
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/types/time.go:1051:				return ZeroDatetime, errors.Trace(ErrWrongValue.GenWithStackByArgs(DateTimeStr, str))
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/types/time.go:1095:			return ZeroDatetime, errors.Trace(ErrWrongValue.GenWithStackByArgs(TimeStr, str))
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/types/time.go:1155:			return ZeroDatetime, errors.Trace(ErrWrongValue.GenWithStackByArgs(DateTimeStr, str))
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/types/time.go:1183:		return ZeroDatetime, errors.Trace(ErrWrongValue.GenWithStackByArgs(DateTimeStr, str))
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/types/time.go:1206:			return ZeroDatetime, errors.Trace(ErrWrongValue.GenWithStackByArgs(DateTimeStr, str))
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/types/time.go:1728:		return ZeroDuration, true, ErrTruncatedWrongVal.GenWithStackByArgs("time", str)
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/types/time.go:1745:		return ZeroDuration, true, ErrTruncatedWrongVal.GenWithStackByArgs("time", str)
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/types/time.go:1751:		return ZeroDuration, true, ErrTruncatedWrongVal.GenWithStackByArgs("time", str)
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/types/time.go:1760:		return ZeroDuration, true, ErrTruncatedWrongVal.GenWithStackByArgs("time", str)
+/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/types/time.go:1770:		return Duration{t, fsp}, false, ErrTruncatedWrongVal.GenWithStackByArgs("time", str)
+exec
+/usr/bin/bash -lc "sed -n '1,220p' /mnt/data/joechenrh/raas/ai-engineer/skills/review-output-format/references/phrase-bank.md" in /mnt/data/joechenrh/raas succeeded in 0ms:
+# Phrase Bank (Data-Derived)
+
+Purpose:
+- keep wording aligned with observed D3Hunter review style
+- provide short stems you can adapt with concrete scope/evidence
+- speed up drafting while keeping comments direct and actionable
+
+How to use:
+- use these as phrase stems, not mandatory copy-paste text
+- fill in concrete path/line/risk when asking for non-trivial changes
+- prefer one stem per comment to keep focus
+
+Clarify intent:
+- `what's this for?`
+- `when will this happen? seems a bug`
+- `do we still need this?`
+- `why not use <api/primitive>?`
+
+Request change:
+- `seems no need to <step>; can we remove it?`
+exec
+/usr/bin/bash -lc "sed -n '2495,2525p' /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/types/datum.go" in /mnt/data/joechenrh/raas succeeded in 0ms:
+			builder.WriteString(str)
+		}
+		if originalLen != -1 {
+			builder.WriteString(" len(")
+			builder.WriteString(strconv.Itoa(originalLen))
+			builder.WriteString(")")
+		}
+	}
+	if n > 1 {
+		builder.WriteString(")")
+	}
+	return builder.String(), nil
+}
+
+// DatumsToStrNoErr converts some datums to a formatted string.
+// If an error occurs, it will print a log instead of returning an error.
+func DatumsToStrNoErr(datums []Datum) string {
+	str, err := DatumsToString(datums, true)
+	terror.Log(errors.Trace(err))
+	return str
+codex
+I’ve narrowed the review to one concrete defect. I’m writing the JSON finding now, anchored on the new `reason := err.Error()` path that bypasses the existing redaction expectations.
+exec
+/usr/bin/bash -lc 'test -d /mnt/data/joechenrh/raas/.pr-review-66917-1773320907 && echo exists' in /mnt/data/joechenrh/raas succeeded in 0ms:
+exists
+exec
+/usr/bin/bash -lc "nl -ba /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/backend/kv/base.go | sed -n '352,362p'" in /mnt/data/joechenrh/raas succeeded in 0ms:
+   352				zap.Int("columnID", j+1))
+   353		}
+   354	
+   355		if err == nil {
+   356			return nil
+   357		}
+   358	
+   359		badValue := datumToValueStringForCastError(original)
+   360		reason := err.Error()
+   361		return common.ErrCastValue.GenWithStackByArgs(colInfo.Name.O, &colInfo.FieldType, badValue, reason)
+   362	}
+exec
+/usr/bin/bash -lc "nl -ba /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors.go | sed -n '88,96p'" in /mnt/data/joechenrh/raas succeeded in 0ms:
+    88		ErrChecksumMismatch  = errors.Normalize("checksum mismatched remote vs local => (checksum: %d vs %d) (total_kvs: %d vs %d) (total_bytes:%d vs %d)", errors.RFCCodeText("Lighting:Restore:ErrChecksumMismatch"))
+    89		ErrRestoreTable      = errors.Normalize("restore table %s failed", errors.RFCCodeText("Lightning:Restore:ErrRestoreTable"))
+    90		ErrEncodeKV          = errors.Normalize("encode kv error in file %s at offset %d", errors.RFCCodeText("Lightning:Restore:ErrEncodeKV"))
+    91		ErrCastValue         = errors.Normalize(
+    92			"Value conversion failed for column '%s'. Expected type: %s, received value: %s. Reason: %s.",
+    93			errors.RFCCodeText("Import:ErrCastValue"),
+    94			errors.RedactArgs([]int{2}),
+    95		)
+    96		ErrAllocTableRowIDs     = errors.Normalize("allocate table row id error", errors.RFCCodeText("Lightning:Restore:ErrAllocTableRowIDs"))
+exec
+/usr/bin/bash -lc "nl -ba /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/table/column.go | sed -n '354,363p'" in /mnt/data/joechenrh/raas succeeded in 0ms:
+   354			return casted, err
+   355		}
+   356		if err != nil && types.ErrTruncated.Equal(err) && ft.GetType() != mysql.TypeSet && ft.GetType() != mysql.TypeEnum {
+   357			str, err1 := val.ToString()
+   358			if err1 != nil {
+   359				logutil.BgLogger().Warn("Datum ToString failed", zap.Stringer("Datum", val), zap.Error(err1))
+   360			}
+   361			err = types.ErrTruncatedWrongVal.GenWithStackByArgs(ft.CompactStr(), str)
+   362		} else if !casted.IsNull() &&
+   363			(ft.GetType() == mysql.TypeDate || ft.GetType() == mysql.TypeDatetime || ft.GetType() == mysql.TypeTimestamp) {
+exec
+/usr/bin/bash -lc "nl -ba /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/lightning/common/errors_test.go | sed -n '100,116p'" in /mnt/data/joechenrh/raas succeeded in 0ms:
+   100	}
+   101	
+   102	func TestErrCastValueRedact(t *testing.T) {
+   103		originalMode := errors.RedactLogEnabled.Load()
+   104		t.Cleanup(func() { errors.RedactLogEnabled.Store(originalMode) })
+   105	
+   106		errors.RedactLogEnabled.Store(errors.RedactLogDisable)
+   107		err := ErrCastValue.GenWithStackByArgs("c1", "tinyint(4)", "\"BAD\"", "out of range")
+   108		require.EqualError(t, err, "[Import:ErrCastValue]Value conversion failed for column 'c1'. Expected type: tinyint(4), received value: \"BAD\". Reason: out of range.")
+   109	
+   110		errors.RedactLogEnabled.Store(errors.RedactLogEnable)
+   111		err = ErrCastValue.GenWithStackByArgs("c1", "tinyint(4)", "\"BAD\"", "out of range")
+   112		require.EqualError(t, err, "[Import:ErrCastValue]Value conversion failed for column 'c1'. Expected type: tinyint(4), received value: ?. Reason: out of range.")
+   113	
+   114		errors.RedactLogEnabled.Store(errors.RedactLogMarker)
+   115		err = ErrCastValue.GenWithStackByArgs("c1", "tinyint(4)", "\"BAD\"", "out of range")
+   116		require.EqualError(t, err, "[Import:ErrCastValue]Value conversion failed for column 'c1'. Expected type: tinyint(4), received value: ‹\"BAD\"›. Reason: out of range.")
+exec
+/usr/bin/bash -lc "nl -ba /mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917/pkg/types/time.go | sed -n '1036,1042p'" in /mnt/data/joechenrh/raas succeeded in 0ms:
+  1036		}
+  1037		switch len(seps) {
+  1038		case 0:
+  1039			return ZeroDatetime, errors.Trace(ErrWrongValue.GenWithStackByArgs(DateTimeStr, str))
+  1040		case 1:
+  1041			l := len(seps[0])
+  1042			// Values specified as numbers
+codex
+I’ve finished the review and I’m emitting the requested JSON to the exact output path now. No code changes are needed in the repo; this is review output only.
+file update
+A /mnt/data/joechenrh/raas/.pr-review-66917-1773320907/review-correctness.json
+{
+  "findings": [
+    {
+      "severity": "Major",
+      "title": "Redaction mode is bypassed by copying the raw cast error into `Reason`",
+      "why": "This new path rebuilds the cast failure as `ErrCastValue`, but it copies `err.Error()` verbatim into the `Reason` field. `ErrCastValue` only redacts argument 2 (`received value`), so any cast error whose message already embeds the offending input will still leak that value when redaction is enabled.",
+      "scope": "pkg/lightning/backend/kv/base.go:359-361; pkg/lightning/common/errors.go:91-95; examples of raw-value cast errors come from pkg/table/column.go:356-361 and pkg/types/time.go:1039",
+      "anchor": {
+        "path": "pkg/lightning/backend/kv/base.go",
+        "line": 360,
+        "side": "RIGHT"
+      },
+      "risk_if_unchanged": "Imports run with `redact-log=enable` or marker mode can still expose user data in returned errors, task-info type-error records, and logs. For example, invalid datetime / time / string-conversion failures will surface the original field content inside `Reason`, defeating the existing redaction contract.",
+      "evidence": "The new implementation does `reason := err.Error()` and passes that string to `ErrCastValue.GenWithStackByArgs(...)`. `ErrCastValue` is defined with `errors.RedactArgs([]int{2})`, so the reason is never redacted. Existing cast paths generate errors from the raw input, e.g. `types.ErrTruncatedWrongVal.GenWithStackByArgs(ft.CompactStr(), str)` in `pkg/table/column.go:361` and `ErrWrongValue.GenWithStackByArgs(DateTimeStr, str)` in `pkg/types/time.go:1039`. The new redaction test only covers the safe placeholder reason `out of range`, so this leak is currently untested.",
+      "change_request": "Please keep the reason redaction-safe here: either preserve the wrapped original error without interpolating its raw message, or sanitize/redact the reason before building `ErrCastValue`. Please add a case for a cast error whose message includes the original value, such as an invalid datetime or invalid character-string conversion, under both redact-enable and marker modes."
+    }
+  ]
+}
+apply_patch(auto_approved=true) exited 0 in 7ms:
+Success. Updated the following files:
+A /mnt/data/joechenrh/raas/.pr-review-66917-1773320907/review-correctness.json
+file update:
+diff --git a/.pr-review-66917-1773320907/review-correctness.json b/.pr-review-66917-1773320907/review-correctness.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..39158a6d1b8d281a0f56942d995b7a8068a79d69
+--- /dev/null
++++ b/.pr-review-66917-1773320907/review-correctness.json
+@@ -0,0 +1,18 @@
++{
++  "findings": [
++    {
++      "severity": "Major",
++      "title": "Redaction mode is bypassed by copying the raw cast error into `Reason`",
++      "why": "This new path rebuilds the cast failure as `ErrCastValue`, but it copies `err.Error()` verbatim into the `Reason` field. `ErrCastValue` only redacts argument 2 (`received value`), so any cast error whose message already embeds the offending input will still leak that value when redaction is enabled.",
++      "scope": "pkg/lightning/backend/kv/base.go:359-361; pkg/lightning/common/errors.go:91-95; examples of raw-value cast errors come from pkg/table/column.go:356-361 and pkg/types/time.go:1039",
++      "anchor": {
++        "path": "pkg/lightning/backend/kv/base.go",
++        "line": 360,
++        "side": "RIGHT"
++      },
++      "risk_if_unchanged": "Imports run with `redact-log=enable` or marker mode can still expose user data in returned errors, task-info type-error records, and logs. For example, invalid datetime / time / string-conversion failures will surface the original field content inside `Reason`, defeating the existing redaction contract.",
++      "evidence": "The new implementation does `reason := err.Error()` and passes that string to `ErrCastValue.GenWithStackByArgs(...)`. `ErrCastValue` is defined with `errors.RedactArgs([]int{2})`, so the reason is never redacted. Existing cast paths generate errors from the raw input, e.g. `types.ErrTruncatedWrongVal.GenWithStackByArgs(ft.CompactStr(), str)` in `pkg/table/column.go:361` and `ErrWrongValue.GenWithStackByArgs(DateTimeStr, str)` in `pkg/types/time.go:1039`. The new redaction test only covers the safe placeholder reason `out of range`, so this leak is currently untested.",
++      "change_request": "Please keep the reason redaction-safe here: either preserve the wrapped original error without interpolating its raw message, or sanitize/redact the reason before building `ErrCastValue`. Please add a case for a cast error whose message includes the original value, such as an invalid datetime or invalid character-string conversion, under both redact-enable and marker modes."
++    }
++  ]
++}
+
+file update:
+diff --git a/.pr-review-66917-1773320907/review-correctness.json b/.pr-review-66917-1773320907/review-correctness.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..39158a6d1b8d281a0f56942d995b7a8068a79d69
+--- /dev/null
++++ b/.pr-review-66917-1773320907/review-correctness.json
+@@ -0,0 +1,18 @@
++{
++  "findings": [
++    {
++      "severity": "Major",
++      "title": "Redaction mode is bypassed by copying the raw cast error into `Reason`",
++      "why": "This new path rebuilds the cast failure as `ErrCastValue`, but it copies `err.Error()` verbatim into the `Reason` field. `ErrCastValue` only redacts argument 2 (`received value`), so any cast error whose message already embeds the offending input will still leak that value when redaction is enabled.",
++      "scope": "pkg/lightning/backend/kv/base.go:359-361; pkg/lightning/common/errors.go:91-95; examples of raw-value cast errors come from pkg/table/column.go:356-361 and pkg/types/time.go:1039",
++      "anchor": {
++        "path": "pkg/lightning/backend/kv/base.go",
++        "line": 360,
++        "side": "RIGHT"
++      },
++      "risk_if_unchanged": "Imports run with `redact-log=enable` or marker mode can still expose user data in returned errors, task-info type-error records, and logs. For example, invalid datetime / time / string-conversion failures will surface the original field content inside `Reason`, defeating the existing redaction contract.",
++      "evidence": "The new implementation does `reason := err.Error()` and passes that string to `ErrCastValue.GenWithStackByArgs(...)`. `ErrCastValue` is defined with `errors.RedactArgs([]int{2})`, so the reason is never redacted. Existing cast paths generate errors from the raw input, e.g. `types.ErrTruncatedWrongVal.GenWithStackByArgs(ft.CompactStr(), str)` in `pkg/table/column.go:361` and `ErrWrongValue.GenWithStackByArgs(DateTimeStr, str)` in `pkg/types/time.go:1039`. The new redaction test only covers the safe placeholder reason `out of range`, so this leak is currently untested.",
++      "change_request": "Please keep the reason redaction-safe here: either preserve the wrapped original error without interpolating its raw message, or sanitize/redact the reason before building `ErrCastValue`. Please add a case for a cast error whose message includes the original value, such as an invalid datetime or invalid character-string conversion, under both redact-enable and marker modes."
++    }
++  ]
++}
+
+exec
+/usr/bin/bash -lc 'cat /mnt/data/joechenrh/raas/.pr-review-66917-1773320907/review-correctness.json' in /mnt/data/joechenrh/raas succeeded in 0ms:
+{
+  "findings": [
+    {
+      "severity": "Major",
+      "title": "Redaction mode is bypassed by copying the raw cast error into `Reason`",
+      "why": "This new path rebuilds the cast failure as `ErrCastValue`, but it copies `err.Error()` verbatim into the `Reason` field. `ErrCastValue` only redacts argument 2 (`received value`), so any cast error whose message already embeds the offending input will still leak that value when redaction is enabled.",
+      "scope": "pkg/lightning/backend/kv/base.go:359-361; pkg/lightning/common/errors.go:91-95; examples of raw-value cast errors come from pkg/table/column.go:356-361 and pkg/types/time.go:1039",
+      "anchor": {
+        "path": "pkg/lightning/backend/kv/base.go",
+        "line": 360,
+        "side": "RIGHT"
+      },
+      "risk_if_unchanged": "Imports run with `redact-log=enable` or marker mode can still expose user data in returned errors, task-info type-error records, and logs. For example, invalid datetime / time / string-conversion failures will surface the original field content inside `Reason`, defeating the existing redaction contract.",
+      "evidence": "The new implementation does `reason := err.Error()` and passes that string to `ErrCastValue.GenWithStackByArgs(...)`. `ErrCastValue` is defined with `errors.RedactArgs([]int{2})`, so the reason is never redacted. Existing cast paths generate errors from the raw input, e.g. `types.ErrTruncatedWrongVal.GenWithStackByArgs(ft.CompactStr(), str)` in `pkg/table/column.go:361` and `ErrWrongValue.GenWithStackByArgs(DateTimeStr, str)` in `pkg/types/time.go:1039`. The new redaction test only covers the safe placeholder reason `out of range`, so this leak is currently untested.",
+      "change_request": "Please keep the reason redaction-safe here: either preserve the wrapped original error without interpolating its raw message, or sanitize/redact the reason before building `ErrCastValue`. Please add a case for a cast error whose message includes the original value, such as an invalid datetime or invalid character-string conversion, under both redact-enable and marker modes."
+    }
+  ]
+}
+file update:
+diff --git a/.pr-review-66917-1773320907/review-correctness.json b/.pr-review-66917-1773320907/review-correctness.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..39158a6d1b8d281a0f56942d995b7a8068a79d69
+--- /dev/null
++++ b/.pr-review-66917-1773320907/review-correctness.json
+@@ -0,0 +1,18 @@
++{
++  "findings": [
++    {
++      "severity": "Major",
++      "title": "Redaction mode is bypassed by copying the raw cast error into `Reason`",
++      "why": "This new path rebuilds the cast failure as `ErrCastValue`, but it copies `err.Error()` verbatim into the `Reason` field. `ErrCastValue` only redacts argument 2 (`received value`), so any cast error whose message already embeds the offending input will still leak that value when redaction is enabled.",
++      "scope": "pkg/lightning/backend/kv/base.go:359-361; pkg/lightning/common/errors.go:91-95; examples of raw-value cast errors come from pkg/table/column.go:356-361 and pkg/types/time.go:1039",
++      "anchor": {
++        "path": "pkg/lightning/backend/kv/base.go",
++        "line": 360,
++        "side": "RIGHT"
++      },
++      "risk_if_unchanged": "Imports run with `redact-log=enable` or marker mode can still expose user data in returned errors, task-info type-error records, and logs. For example, invalid datetime / time / string-conversion failures will surface the original field content inside `Reason`, defeating the existing redaction contract.",
++      "evidence": "The new implementation does `reason := err.Error()` and passes that string to `ErrCastValue.GenWithStackByArgs(...)`. `ErrCastValue` is defined with `errors.RedactArgs([]int{2})`, so the reason is never redacted. Existing cast paths generate errors from the raw input, e.g. `types.ErrTruncatedWrongVal.GenWithStackByArgs(ft.CompactStr(), str)` in `pkg/table/column.go:361` and `ErrWrongValue.GenWithStackByArgs(DateTimeStr, str)` in `pkg/types/time.go:1039`. The new redaction test only covers the safe placeholder reason `out of range`, so this leak is currently untested.",
++      "change_request": "Please keep the reason redaction-safe here: either preserve the wrapped original error without interpolating its raw message, or sanitize/redact the reason before building `ErrCastValue`. Please add a case for a cast error whose message includes the original value, such as an invalid datetime or invalid character-string conversion, under both redact-enable and marker modes."
++    }
++  ]
++}
+
+codex
+Wrote the review output to [review-correctness.json](/mnt/data/joechenrh/raas/.pr-review-66917-1773320907/review-correctness.json).
+
+Identified 1 `Major` finding: the new `ErrCastValue` path copies `err.Error()` into `Reason`, so cast failures that already embed the offending input can still leak that value even when redaction mode is enabled.
+file update:
+diff --git a/.pr-review-66917-1773320907/review-correctness.json b/.pr-review-66917-1773320907/review-correctness.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..39158a6d1b8d281a0f56942d995b7a8068a79d69
+--- /dev/null
++++ b/.pr-review-66917-1773320907/review-correctness.json
+@@ -0,0 +1,18 @@
++{
++  "findings": [
++    {
++      "severity": "Major",
++      "title": "Redaction mode is bypassed by copying the raw cast error into `Reason`",
++      "why": "This new path rebuilds the cast failure as `ErrCastValue`, but it copies `err.Error()` verbatim into the `Reason` field. `ErrCastValue` only redacts argument 2 (`received value`), so any cast error whose message already embeds the offending input will still leak that value when redaction is enabled.",
++      "scope": "pkg/lightning/backend/kv/base.go:359-361; pkg/lightning/common/errors.go:91-95; examples of raw-value cast errors come from pkg/table/column.go:356-361 and pkg/types/time.go:1039",
++      "anchor": {
++        "path": "pkg/lightning/backend/kv/base.go",
++        "line": 360,
++        "side": "RIGHT"
++      },
++      "risk_if_unchanged": "Imports run with `redact-log=enable` or marker mode can still expose user data in returned errors, task-info type-error records, and logs. For example, invalid datetime / time / string-conversion failures will surface the original field content inside `Reason`, defeating the existing redaction contract.",
++      "evidence": "The new implementation does `reason := err.Error()` and passes that string to `ErrCastValue.GenWithStackByArgs(...)`. `ErrCastValue` is defined with `errors.RedactArgs([]int{2})`, so the reason is never redacted. Existing cast paths generate errors from the raw input, e.g. `types.ErrTruncatedWrongVal.GenWithStackByArgs(ft.CompactStr(), str)` in `pkg/table/column.go:361` and `ErrWrongValue.GenWithStackByArgs(DateTimeStr, str)` in `pkg/types/time.go:1039`. The new redaction test only covers the safe placeholder reason `out of range`, so this leak is currently untested.",
++      "change_request": "Please keep the reason redaction-safe here: either preserve the wrapped original error without interpolating its raw message, or sanitize/redact the reason before building `ErrCastValue`. Please add a case for a cast error whose message includes the original value, such as an invalid datetime or invalid character-string conversion, under both redact-enable and marker modes."
++    }
++  ]
++}
+
+tokens used
+281,998
+Wrote the review output to [review-correctness.json](/mnt/data/joechenrh/raas/.pr-review-66917-1773320907/review-correctness.json).
+
+Identified 1 `Major` finding: the new `ErrCastValue` path copies `err.Error()` into `Reason`, so cast failures that already embed the offending input can still leak that value even when redaction mode is enabled.

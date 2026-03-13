@@ -1,0 +1,13 @@
+{
+  "findings": [
+    {
+      "severity": "Minor",
+      "title": "Read-range planning now leaks a positional tuple contract into every readAllData caller",
+      "why": "The refactor moves prop scanning out of `readAllData`, but the replacement API is a `[][2][]uint64` tuple plus two extra slice parameters. That makes each caller decode magic indexes and keep four correlated slices aligned by convention instead of by type.",
+      "scope": "pkg/lightning/backend/external/util.go:64; pkg/lightning/backend/external/reader.go:37; pkg/lightning/backend/external/engine.go:249; pkg/lightning/backend/external/merge_v2.go:127",
+      "risk_if_unchanged": "Future callers can easily swap the tuple indexes, mix offsets from different key boundaries, or pass misaligned slices into `readAllData`, which makes this hot path harder to review and easier to regress with subtle partial-range reads.",
+      "evidence": "`getReadRangeFromProps` now returns `[][2][]uint64`, and callers unpack it with positional indexing such as `readRanges[0][0]` and `readRanges[1][1]` before passing `startOffsets` and `endOffsets` into `readAllData`. The same unpacking pattern now appears in `merge_v2.go`, `testutil.go`, `reader_test.go`, and `bench_test.go`.",
+      "change_request": "Why not use a small domain type or focused helper here? Keep the prop-derived offsets encapsulated as a named read-range object, or provide a single-range helper so callers do not need to understand `[start/end][per-file]` indexing."
+    }
+  ]
+}

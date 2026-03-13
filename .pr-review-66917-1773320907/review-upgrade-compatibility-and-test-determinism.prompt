@@ -1,0 +1,8 @@
+Invoke skill `review-upgrade-compatibility-and-test-determinism` directly.
+Inputs: `code_path=/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66917`, `diff_filename=66917.diff`, `output_filename=/mnt/data/joechenrh/raas/.pr-review-66917-1773320907/review-upgrade-compatibility-and-test-determinism.json`.
+Write output JSON to exactly `output_filename`.
+Run this child process with write-capable filesystem access matching the parent execution mode.
+This codex exec child process is already the required reviewer subagent.
+Do not run in parent; execute in this child process only.
+Do not call spawn_agent, collab, Task, or delegate to any additional subagents.
+Keep the child working directory at /mnt/data/joechenrh/raas; access the reviewed checkout via the provided additional writable scope.

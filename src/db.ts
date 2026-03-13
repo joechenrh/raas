@@ -26,6 +26,7 @@ export interface ReviewRun {
   type: string;
   status: string;
   trigger_reason: string | null;
+  metadata: string | null;
   started_at: string | null;
   completed_at: string | null;
   duration_ms: number | null;
@@ -79,6 +80,7 @@ export function initDatabase(dbPath?: string): Database.Database {
       type TEXT NOT NULL CHECK(type IN ('initial', 'followup', 'recheck')),
       status TEXT NOT NULL CHECK(status IN ('pending', 'running', 'completed', 'failed')),
       trigger_reason TEXT,
+      metadata TEXT,
       started_at TEXT,
       completed_at TEXT,
       duration_ms INTEGER,
@@ -97,9 +99,15 @@ export function initDatabase(dbPath?: string): Database.Database {
     );
 
     CREATE INDEX IF NOT EXISTS idx_prs_repo_number ON prs(repo, number);
+    CREATE INDEX IF NOT EXISTS idx_prs_repo_number_sort ON prs(repo, number DESC);
     CREATE INDEX IF NOT EXISTS idx_prs_review_status ON prs(review_status);
     CREATE INDEX IF NOT EXISTS idx_review_runs_pr_id ON review_runs(pr_id);
   `);
+
+  const reviewRunColumns = db.prepare("PRAGMA table_info(review_runs)").all() as Array<{ name: string }>;
+  if (!reviewRunColumns.some((column) => column.name === 'metadata')) {
+    db.exec('ALTER TABLE review_runs ADD COLUMN metadata TEXT');
+  }
 
   return db;
 }
@@ -129,11 +137,11 @@ export function getPR(db: Database.Database, repo: string, number: number): PR |
 }
 
 export function getAllPRs(db: Database.Database): PR[] {
-  return db.prepare('SELECT * FROM prs ORDER BY updated_at DESC').all() as PR[];
+  return db.prepare('SELECT * FROM prs ORDER BY repo ASC, number DESC').all() as PR[];
 }
 
 export function getOpenPRs(db: Database.Database): PR[] {
-  return db.prepare("SELECT * FROM prs WHERE state = 'open' ORDER BY updated_at DESC").all() as PR[];
+  return db.prepare("SELECT * FROM prs WHERE state = 'open' ORDER BY repo ASC, number DESC").all() as PR[];
 }
 
 export function updatePRStatus(db: Database.Database, id: number, status: string): void {
@@ -159,10 +167,16 @@ export function updatePRState(db: Database.Database, id: number, state: string):
   db.prepare("UPDATE prs SET state = ?, updated_at = datetime('now') WHERE id = ?").run(state, id);
 }
 
-export function createReviewRun(db: Database.Database, prId: number, type: string, triggerReason: string): number {
+export function createReviewRun(
+  db: Database.Database,
+  prId: number,
+  type: string,
+  triggerReason: string,
+  metadata?: string,
+): number {
   const result = db.prepare(
-    "INSERT INTO review_runs (pr_id, type, status, trigger_reason) VALUES (?, ?, 'pending', ?)",
-  ).run(prId, type, triggerReason);
+    "INSERT INTO review_runs (pr_id, type, status, trigger_reason, metadata) VALUES (?, ?, 'pending', ?, ?)",
+  ).run(prId, type, triggerReason, metadata || null);
   return Number(result.lastInsertRowid);
 }
 

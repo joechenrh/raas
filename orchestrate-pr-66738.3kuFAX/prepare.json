@@ -1,0 +1,1 @@
+{"code_path":null,"diff_filename":null,"work_tree":null,"error":"Unable to invoke skill prepare-pr-diff-worktree because local command execution is blocked in this session by sandbox error: LandlockRestrict."}

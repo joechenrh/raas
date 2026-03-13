@@ -1,0 +1,18 @@
+{
+  "findings": [
+    {
+      "severity": "Major",
+      "title": "Redaction mode is bypassed by copying the raw cast error into `Reason`",
+      "why": "This new path rebuilds the cast failure as `ErrCastValue`, but it copies `err.Error()` verbatim into the `Reason` field. `ErrCastValue` only redacts argument 2 (`received value`), so any cast error whose message already embeds the offending input will still leak that value when redaction is enabled.",
+      "scope": "pkg/lightning/backend/kv/base.go:359-361; pkg/lightning/common/errors.go:91-95; examples of raw-value cast errors come from pkg/table/column.go:356-361 and pkg/types/time.go:1039",
+      "anchor": {
+        "path": "pkg/lightning/backend/kv/base.go",
+        "line": 360,
+        "side": "RIGHT"
+      },
+      "risk_if_unchanged": "Imports run with `redact-log=enable` or marker mode can still expose user data in returned errors, task-info type-error records, and logs. For example, invalid datetime / time / string-conversion failures will surface the original field content inside `Reason`, defeating the existing redaction contract.",
+      "evidence": "The new implementation does `reason := err.Error()` and passes that string to `ErrCastValue.GenWithStackByArgs(...)`. `ErrCastValue` is defined with `errors.RedactArgs([]int{2})`, so the reason is never redacted. Existing cast paths generate errors from the raw input, e.g. `types.ErrTruncatedWrongVal.GenWithStackByArgs(ft.CompactStr(), str)` in `pkg/table/column.go:361` and `ErrWrongValue.GenWithStackByArgs(DateTimeStr, str)` in `pkg/types/time.go:1039`. The new redaction test only covers the safe placeholder reason `out of range`, so this leak is currently untested.",
+      "change_request": "Please keep the reason redaction-safe here: either preserve the wrapped original error without interpolating its raw message, or sanitize/redact the reason before building `ErrCastValue`. Please add a case for a cast error whose message includes the original value, such as an invalid datetime or invalid character-string conversion, under both redact-enable and marker modes."
+    }
+  ]
+}

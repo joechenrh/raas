@@ -1,0 +1,130 @@
+{
+  "findings": [
+    {
+      "severity": "Blocker",
+      "title": "Named keyspaces are treated as keyspace-level GC without checking the configured GC management mode",
+      "why": "The new dumpling flow switches to keyspace-scoped PD APIs whenever `KEYSPACE_NAME` is non-empty, but TiDB keyspaces can still run under the default global/unified GC mode until `KEYSPACE_META.CONFIG.gc_management_type` explicitly enables keyspace-level GC.",
+      "scope": "dumpling/export/sql.go:868, dumpling/export/dump.go:1493, dumpling/export/dump.go:1527, dumpling/export/dump.go:1623",
+      "anchor": {
+        "path": "dumpling/export/dump.go",
+        "line": 1527,
+        "side": "RIGHT"
+      },
+      "risk_if_unchanged": "Dumps against named keyspaces that still use global or unified GC can refresh the wrong protection mechanism. Dumpling will bypass the existing service-safe-point flow and rely on a keyspace barrier that the active GC mode does not honor, so long-running exports can lose snapshot protection during upgrade, rollback, or steady-state operation.",
+      "evidence": "The new metadata lookup only reads `KEYSPACE_NAME` and `KEYSPACE_ID`, then stores any non-empty name into `d.tidbKeyspaceName`. Both `tidbSetPDClientForGC` and `tidbStartGCSavepointUpdateService` branch on that field and choose `pd.NewAPIContextV2(...)` plus `updateKeyspaceGCBarrier`, but they never inspect `KEYSPACE_META.CONFIG`. TiDB's own GC worker distinguishes named keyspaces that still use unified GC from keyspaces that actually use keyspace-level GC, so keyspace presence alone is not a safe mode selector.",
+      "change_request": "Please read `KEYSPACE_META.CONFIG` (or equivalent PD keyspace metadata), derive the actual GC management mode, and only use `SetGCBarrier` / `updateKeyspaceGCBarrier` when the keyspace is configured for keyspace-level GC. Keep the existing global safepoint path for named keyspaces that remain on global or unified GC."
+    },
+    {
+      "severity": "Major",
+      "title": "Premium `--pd` endpoints are trusted without proving they belong to the connected TiDB cluster",
+      "why": "The new keyspace path skips the existing cluster-identity guard and creates a PD client directly from the user-supplied `--pd` list.",
+      "scope": "dumpling/export/dump.go:1526",
+      "anchor": {
+        "path": "dumpling/export/dump.go",
+        "line": 1538,
+        "side": "RIGHT"
+      },
+      "risk_if_unchanged": "If `--pd` points at a different cluster, Dumpling will protect GC on that other PD while taking its snapshot from the current TiDB. Long-running exports can then lose the snapshot they rely on, and the wrong cluster is left with an unexpected barrier.",
+      "evidence": "The classical branch still calls `checkSameCluster(...)` before enabling PD GC, but the premium branch goes from parsing `conf.PDAddr` straight to `pd.NewClientWithAPIContext(...)` with no equivalent validation.",
+      "change_request": "Please add a same-cluster validation for the premium path before accepting `--pd`, or reject manual PD endpoints unless they can be proven to match the connected TiDB cluster."
+    },
+    {
+      "severity": "Major",
+      "title": "KEYSPACE_META lookup failures are silently downgraded to the classical GC path",
+      "why": "Any non-1146 error from `information_schema.KEYSPACE_META` is ignored when the new flags are omitted, even though that result decides whether Dumpling must use a keyspace GC barrier or the legacy global safepoint.",
+      "scope": "dumpling/export/dump.go:1469",
+      "anchor": {
+        "path": "dumpling/export/dump.go",
+        "line": 1481,
+        "side": "RIGHT"
+      },
+      "risk_if_unchanged": "A premium keyspace cluster that hits a transient metadata or permission error can continue without the required keyspace barrier. The dump then runs with no GC protection or with the wrong global mechanism, which can invalidate long snapshot exports.",
+      "evidence": "On this error path `tidbResolveKeyspaceMetaForGC` logs that the problem \"won't affect dump process\" and returns nil. That leaves `d.tidbKeyspaceName` empty, so the later GC setup falls through to the classical `GetPdAddrs` and `UpdateServiceGCSafePoint` logic instead of the keyspace barrier path.",
+      "change_request": "Please fail closed for non-1146 `KEYSPACE_META` errors, or at least stop before selecting the classical GC code path when the cluster type cannot be determined."
+    },
+    {
+      "severity": "Major",
+      "title": "Premium/classical GC mode is inferred through mutable Dumper state across multiple init steps",
+      "why": "The new keyspace flow spreads one decision across `runSteps`, `tidbResolveKeyspaceMetaForGC`, `tidbSetPDClientForGC`, and `tidbStartGCSavepointUpdateService`, with later steps inferring mode from `d.tidbKeyspaceName` instead of consuming one explicit result.",
+      "scope": "dumpling/export/dump.go:129, dumpling/export/dump.go:1460, dumpling/export/dump.go:1518, dumpling/export/dump.go:1615",
+      "anchor": {
+        "path": "dumpling/export/dump.go",
+        "line": 1527,
+        "side": "RIGHT"
+      },
+      "risk_if_unchanged": "Future edits can change validation or mode-selection rules in one step without updating the others, which makes the premium/classical behavior depend on hidden ordering and raises the chance of sending a cluster down the wrong GC path.",
+      "evidence": "`tidbResolveKeyspaceMetaForGC` both fetches and validates metadata and mutates `d.tidbKeyspaceName` / `d.tidbKeyspaceID`; `tidbSetPDClientForGC` and `tidbStartGCSavepointUpdateService` each branch on that mutable state later.",
+      "change_request": "Can we compute one explicit GC mode/result object during resolution and have the later steps consume that, instead of branching on `d.tidbKeyspaceName` state? Keeping the mode, keyspace metadata, and PD configuration together would remove the hidden temporal coupling and make the matrix easier to test."
+    },
+    {
+      "severity": "Major",
+      "title": "The new tests never exercise the GC-management-mode split or the barrier update path",
+      "why": "The only added coverage is `TestTiDBResolveKeyspaceMetaForGC`, which validates name/id parsing but does not cover `KEYSPACE_META.CONFIG.gc_management_type`, the `tidbSetPDClientForGC` branch selection, or retry/cancel cleanup in `updateKeyspaceGCBarrier`.",
+      "scope": "dumpling/export/dump_test.go:71, dumpling/export/dump.go:1518, dumpling/export/dump.go:1683",
+      "anchor": {
+        "path": "dumpling/export/dump_test.go",
+        "line": 71,
+        "side": "RIGHT"
+      },
+      "risk_if_unchanged": "Compatibility regressions in mixed GC modes will keep passing CI and will only surface on real keyspace clusters during upgrade or long-running dumps, which is exactly the rollout window this change is trying to make safe.",
+      "evidence": "The diff adds tests only for metadata parsing. There is no added test that includes `KEYSPACE_META.CONFIG`, no test covering classical vs global_gc vs keyspace_level_gc selection, and no test invoking `tidbStartGCSavepointUpdateService` or `updateKeyspaceGCBarrier`.",
+      "change_request": "Please add coverage for both `global_gc` and `keyspace_level_gc` metadata, assert which GC API dumpling chooses in each case, and exercise retry/cancel cleanup for the barrier updater."
+    },
+    {
+      "severity": "Minor",
+      "title": "CLI help does not document that `--pd` and `--keyspace-name` are a required pair",
+      "why": "The new flags are the only public contract for this feature, but their help text describes them independently even though the runtime path rejects premium clusters unless both values line up with `KEYSPACE_META`.",
+      "scope": "dumpling/export/config.go flag help for `--pd`/`--keyspace-name`; enforced later by premium/classical validation in dumpling/export/dump.go",
+      "anchor": {
+        "path": "dumpling/export/config.go",
+        "line": 376,
+        "side": "RIGHT"
+      },
+      "risk_if_unchanged": "Operators can provide `--pd` alone or treat `--keyspace-name` as optional, then hit a hard failure such as `keyspace-name mismatch` without any prior hint from `dumpling --help` about the required combination.",
+      "evidence": "The help text at lines 376-377 says only that each flag is for premium keyspace clusters, while the validation path later rejects a name mismatch and rejects premium clusters without `--pd`.",
+      "change_request": "Please add a short contract note in the flag descriptions that these options are meant to be passed together for premium keyspace clusters, and that `--keyspace-name` must match `information_schema.KEYSPACE_META`."
+    },
+    {
+      "severity": "Minor",
+      "title": "`GetKeyspaceMeta` overloads an existing TiDB term for a much narrower helper",
+      "why": "This name already commonly refers to a structured codec metadata object in TiDB code paths, while this new helper only runs one SQL query and returns two strings.",
+      "scope": "dumpling/export/sql.go exported helper naming, especially at the call site in dumpling/export/dump.go",
+      "anchor": {
+        "path": "dumpling/export/sql.go",
+        "line": 867,
+        "side": "RIGHT"
+      },
+      "risk_if_unchanged": "Future readers can assume this helper returns a full keyspace metadata object or matches the semantics of other `GetKeyspaceMeta` APIs, which increases review and maintenance cost around the new GC path.",
+      "evidence": "This patch introduces `GetKeyspaceMeta(...) (string, string, error)` in `dumpling/export/sql.go`, while other TiDB paths already use `GetKeyspaceMeta()` for codec metadata objects, for example `w.store.GetCodec().GetKeyspaceMeta()` in `pkg/store/gcworker/gc_worker.go`.",
+      "change_request": "Prefer a narrower helper name such as `getKeyspaceNameAndID` or `queryKeyspaceMetaRow`, unless the function also returns a typed metadata object."
+    },
+    {
+      "severity": "Minor",
+      "title": "The service-safe-point and keyspace-barrier updaters now duplicate the same lifecycle scaffold",
+      "why": "Both updater functions own nearly identical ticker, retry, cancellation, snapshot normalization, and best-effort cleanup logic even though they implement the same GC-protection lifecycle.",
+      "scope": "dumpling/export/dump.go:1637, dumpling/export/dump.go:1683",
+      "anchor": {
+        "path": "dumpling/export/dump.go",
+        "line": 1683,
+        "side": "RIGHT"
+      },
+      "risk_if_unchanged": "The classical and keyspace paths will have to be kept in sync manually for every future retry, TTL, or cleanup change, which makes drift likely and increases review cost in a safety-sensitive area.",
+      "evidence": "`updateServiceSafePoint` and `updateKeyspaceGCBarrier` each create a ticker, derive an ID, decrement `snapshotTS` before use, retry 11 times with 1-second backoff, exit on `tctx.Done()`, and defer best-effort cleanup with a background timeout; only the PD API calls differ.",
+      "change_request": "Please keep one canonical lifecycle helper and inject only the per-API set/delete operations, or add a short why-comment if the duplication is intentional because the PD APIs are too different."
+    },
+    {
+      "severity": "Nit",
+      "title": "The new `GetKeyspaceMeta` comment overstates the classical-cluster contract",
+      "why": "The comment says the helper returns empty strings for a classical cluster, but the new caller still has to special-case a missing `KEYSPACE_META` table for older TiDB versions.",
+      "scope": "dumpling/export/sql.go comment for `GetKeyspaceMeta`",
+      "anchor": {
+        "path": "dumpling/export/sql.go",
+        "line": 865,
+        "side": "RIGHT"
+      },
+      "risk_if_unchanged": "A later caller can trust the comment and skip the missing-table branch, which would turn an older-classical-cluster compatibility case into an unexpected error path.",
+      "evidence": "The comment says classical clusters return empty strings, but the caller still needs a dedicated `mysqlErr.Number == 1146` branch because the helper returns an error when `information_schema.KEYSPACE_META` does not exist.",
+      "change_request": "Please add a short why-comment that distinguishes empty values returned from `KEYSPACE_META` from the older-TiDB missing-table case."
+    }
+  ]
+}

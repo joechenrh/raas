@@ -1,0 +1,18 @@
+{
+  "findings": [
+    {
+      "severity": "Minor",
+      "title": "Local-sort retry cleanup change still has no focused regression coverage",
+      "why": "This patch changes the subtask failure cleanup sequence for local sort and turns `CleanupAllLocalEngines` into a fire-and-forget path, but the changed retry/cleanup behavior is still untested. For a partial-failure path that is meant to keep retries and restarts safe, the current evidence is only static reasoning.",
+      "scope": "pkg/dxf/importinto/task_executor.go:212; pkg/lightning/backend/local/engine_mgr.go:480; local-sort subtask error handling",
+      "anchor": {
+        "path": "pkg/dxf/importinto/task_executor.go",
+        "line": 212,
+        "side": "RIGHT"
+      },
+      "risk_if_unchanged": "A later refactor can easily break the error cleanup ordering or the best-effort cleanup invocation without CI catching it, leaving stale local engines behind after a failed import and making retry/restart behavior less predictable for operators.",
+      "evidence": "The diff changes only production code in `pkg/dxf/importinto/task_executor.go`, `pkg/lightning/backend/local/engine_mgr.go`, and `pkg/lightning/backend/local/local.go`. A repository search under `pkg/**/*_test.go` finds no test referencing `CleanupAllLocalEngines`, and no import-into test exercises the local-sort `RunSubtask` failure branch that now defers cleanup before opening engines. Make sure retry/cancel path is covered.",
+      "change_request": "Add UT for it: cover a local-sort `RunSubtask` failure after engines are opened, and assert the cleanup path runs deterministically on error. Please add at least one negative case that verifies retries start from a cleaned engine state, plus a case where cleanup itself reports an error so the logging-only behavior remains intentional."
+    }
+  ]
+}

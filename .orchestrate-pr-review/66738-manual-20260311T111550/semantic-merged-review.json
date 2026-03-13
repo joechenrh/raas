@@ -1,0 +1,60 @@
+{
+  "findings": [
+    {
+      "severity": "Major",
+      "title": "Upfront read-range precomputation scales as jobKeys x statsFiles and bypasses the batch memory budget",
+      "why": "`LoadIngestData` now precomputes and retains start/end offsets for every job key against every stats file before producing the first batch. That changes the lookup state from per-batch O(statsFiles) to O(jobKeys * statsFiles), which is outside the engine's existing batch-oriented memory model.",
+      "scope": "pkg/lightning/backend/external/engine.go:521; pkg/lightning/backend/external/util.go:84",
+      "anchor": {
+        "path": "pkg/lightning/backend/external/engine.go",
+        "line": 521,
+        "side": "RIGHT"
+      },
+      "risk_if_unchanged": "Large imports with many split keys and many external files can spend gigabytes on this offset matrix and hit GC thrash or OOM before any ingest batch is emitted, turning the prop-scan optimization into a startup collapse under expected scale.",
+      "evidence": "`LoadIngestData` now calls `getReadRangeFromProps(ctx, e.jobKeys, e.statsFiles, e.storage)` once for the full key set. `getReadRangeFromProps` allocates two `[]uint64` slices of `len(paths)` for every key (`readRangesPerKey[i][0]` and `[1]`), so the backing arrays alone are `16 * len(jobKeys) * len(statsFiles)` bytes, plus slice headers. The surrounding engine comments still budget memory around keeping at most three batches resident.",
+      "change_request": "Can we keep the prop lookup streaming or batch-scoped instead of materializing the full key x file matrix? If scan reuse is important, keep only the current batch's offsets or switch to a compact cursor-based structure that stays within the existing batch memory budget."
+    },
+    {
+      "severity": "Major",
+      "title": "readAllData's new endOffsets parameter overstates its behavior",
+      "why": "The new `startOffsets, endOffsets` pair reads like an enforced byte-range contract, but only `startOffsets` actually controls I/O. `endOffsets` is used only to size concurrency and log estimated work, so the name suggests stronger behavior than the helper provides.",
+      "scope": "pkg/lightning/backend/external/reader.go:37",
+      "anchor": {
+        "path": "pkg/lightning/backend/external/reader.go",
+        "line": 42,
+        "side": "RIGHT"
+      },
+      "risk_if_unchanged": "Future callers can reasonably assume `readAllData` stops at `endOffsets` and wire follow-up changes around that assumption, which makes this helper easy to misuse as the API spreads to more call sites.",
+      "evidence": "In `readAllData`, `endOffsets` is referenced only in the sizing loop, while the actual reader call passes just `startOffsets[fileIdx]` into `readOneFile` and range enforcement still depends on key filtering.",
+      "change_request": "Prefer explicit naming here; current `endOffsets` name is confusing. Rename it to something like `estimatedEndOffsets`, or add a short contract comment that `startOffsets` are seek positions and `endOffsets` are sizing hints only."
+    },
+    {
+      "severity": "Minor",
+      "title": "Read-range planning exposes a positional tuple contract to every caller",
+      "why": "The new prop-range helper returns `[][2][]uint64`, and the reader path now takes separate `startOffsets` and `endOffsets` slices. That pushes a positional `[start/end][per-file]` convention into every caller instead of expressing the contract with named fields.",
+      "scope": "pkg/lightning/backend/external/util.go:64; pkg/lightning/backend/external/reader.go:42; pkg/lightning/backend/external/engine.go:530; pkg/lightning/backend/external/merge_v2.go:141",
+      "anchor": {
+        "path": "pkg/lightning/backend/external/util.go",
+        "line": 64,
+        "side": "RIGHT"
+      },
+      "risk_if_unchanged": "Future call sites can swap tuple indexes or pair mismatched slices without a type error, which makes this hot path harder to review and easier to regress with subtle partial-range read mistakes.",
+      "evidence": "`getReadRangeFromProps` now returns `[][2][]uint64`, then callers unpack it with positional indexing such as `readRangesPerKey[start][0]`, `readRangesPerKey[end-1][1]`, `readRanges[0][0]`, and `readRanges[1][1]` before handing the slices to `readAllData`. The same positional unpacking pattern was also copied into `bench_test.go`, `reader_test.go`, and `testutil.go`.",
+      "change_request": "Prefer a small named result type such as `ReadRange{StartOffsets, EndOffsets}` and pass that through the reader path instead of raw tuple indexes plus sibling slices. That keeps the helper local to one domain contract and removes the magic-index convention from every caller."
+    },
+    {
+      "severity": "Minor",
+      "title": "The new concurrency-limit test still relies on sleep-based synchronization",
+      "why": "The added coverage for `getReadRangeFromPropsConcurrency` infers that the third open cannot start by sleeping for a fixed 100ms window after the first two opens begin. That makes the assertion depend on scheduler timing instead of an explicit happens-before signal.",
+      "scope": "pkg/lightning/backend/external/util_test.go:230",
+      "anchor": {
+        "path": "pkg/lightning/backend/external/util_test.go",
+        "line": 230,
+        "side": "RIGHT"
+      },
+      "risk_if_unchanged": "This regression test can miss real limit violations on slow or contended CI runners, or fail intermittently when goroutine scheduling does not line up with the fixed sleep window.",
+      "evidence": "After the test waits for two `startedCh` notifications, it calls `time.Sleep(100 * time.Millisecond)` and only then asserts `store.max.Load() == 2`. There is still no explicit synchronization proving that a third `Open` could not start just after the sleep or that the blocked path was exercised before the assertion.",
+      "change_request": "Replace the fixed sleep with an explicit barrier or channel-based assertion that proves the third open cannot begin before the first two readers are released, then close the barrier and verify the helper completes."
+    }
+  ]
+}

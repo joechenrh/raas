@@ -1,0 +1,32 @@
+{
+  "findings": [
+    {
+      "severity": "Major",
+      "title": "Copied cast error reason defeats `ErrCastValue` redaction",
+      "why": "The new cast-error path rebuilds failures as `ErrCastValue`, but it also copies `err.Error()` verbatim into the `Reason` field. `ErrCastValue` only redacts the `received value` argument, so real cast failures whose original error text includes the offending datum still leak that value even when redaction is enabled.",
+      "scope": "pkg/lightning/backend/kv/base.go:359-361; pkg/lightning/common/errors.go:91-95; representative raw-value cast errors in pkg/table/column.go:356-361 and pkg/types/time.go:1039; regression coverage gap in pkg/executor/importer/kv_encode_test.go:121",
+      "anchor": {
+        "path": "pkg/lightning/backend/kv/base.go",
+        "line": 360,
+        "side": "RIGHT"
+      },
+      "risk_if_unchanged": "Imports running with redaction enabled or marker mode can still expose raw input data through returned errors, type-error records, and logs. That breaks the intended redaction guarantee for compatibility and operability-sensitive deployments.",
+      "evidence": "`pkg/lightning/backend/kv/base.go` now does `reason := err.Error()` before calling `ErrCastValue.GenWithStackByArgs(...)`. `pkg/lightning/common/errors.go` defines `ErrCastValue` with `errors.RedactArgs([]int{2})`, so `Reason` is never redacted. Existing cast paths build errors from the raw input, for example `types.ErrTruncatedWrongVal.GenWithStackByArgs(ft.CompactStr(), str)` in `pkg/table/column.go:361` and `ErrWrongValue.GenWithStackByArgs(DateTimeStr, str)` in `pkg/types/time.go:1039`. The updated importer regression case already demonstrates a real overflow reason containing the rejected datum (`constant 10000000 overflows tinyint`), so the leak is not hypothetical.",
+      "change_request": "Please make the copied reason redaction-safe before building `ErrCastValue`: either preserve the wrapped cause without interpolating the raw message, or sanitize/redact the reason text itself. Add a redact-enabled regression case for a real cast failure whose original message contains the offending value, such as overflow, invalid datetime, or invalid character-string conversion."
+    },
+    {
+      "severity": "Major",
+      "title": "Returned cast errors now embed the full rejected datum and can pin large row buffers",
+      "why": "`LogKVConvertFailed` now formats the original datum into `ErrCastValue` and returns it to the caller. On the import and Lightning encode paths, those datums can share parser buffers, so turning the whole value into the returned error recreates the large-retained-allocation problem that the surrounding code is already trying to avoid.",
+      "scope": "pkg/lightning/backend/kv/base.go:315-361, reached from pkg/lightning/backend/kv/sql2kv.go:218-236 and pkg/executor/importer/kv_encode.go:89-94 and 186-191",
+      "anchor": {
+        "path": "pkg/lightning/backend/kv/base.go",
+        "line": 359,
+        "side": "RIGHT"
+      },
+      "risk_if_unchanged": "A single bad row with a large string or blob can allocate and retain a multi-megabyte error message until the chunk or job unwinds, causing avoidable memory spikes or OOM on the failure path instead of a bounded conversion error.",
+      "evidence": "Both encode implementations explicitly defer `TruncateWarns()` because conversion errors can keep the parser buffer alive (`pkg/lightning/backend/kv/sql2kv.go:218-222`, `pkg/executor/importer/kv_encode.go:90-94`). The new code then calls `datumToValueStringForCastError(original)` with no size cap and feeds that into `ErrCastValue` (`pkg/lightning/backend/kv/base.go:359-361`). For `KindBytes` it first materializes a string and then lets `DatumsToStringSmart` render the full payload, including hex output for binary data.",
+      "change_request": "Please avoid returning the full offending value here. Cap or summarize it the same way the logs do, and keep the original cause wrapped. A bounded preview plus length or column metadata preserves debuggability without re-pinning large row buffers on the error path."
+    }
+  ]
+}

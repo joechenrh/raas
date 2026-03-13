@@ -7,6 +7,7 @@ export interface GitHubPR {
   head_sha: string;
   base_branch: string;
   state: string;
+  labels: string[];
   created_at: string;
   updated_at: string;
 }
@@ -15,16 +16,60 @@ export interface ReviewThread {
   id: string;
   isResolved: boolean;
   comments: {
+    id: number | null;
     author: string;
     body: string;
     createdAt: string;
   }[];
 }
 
+export interface FollowupTarget {
+  threadId: string;
+  parentCommentId: number;
+  replyCommentId: number;
+  replyAuthor: string;
+  replyCreatedAt: string;
+}
+
 export interface PRStatusCheck {
   name: string;
   state: string;
   detailsUrl: string | null;
+}
+
+export interface PRStatusChecksResult {
+  checks: PRStatusCheck[];
+  ok: boolean;
+  error?: string;
+}
+
+function mapPullRequest(pr: any): GitHubPR {
+  return {
+    number: pr.number,
+    title: pr.title,
+    author: pr.user?.login || 'unknown',
+    head_sha: pr.head.sha,
+    base_branch: pr.base.ref,
+    state: pr.state,
+    labels: (pr.labels || []).map((label: any) => label.name || '').filter((name: string): name is string => Boolean(name)),
+    created_at: pr.created_at,
+    updated_at: pr.updated_at,
+  };
+}
+
+function dedupeStatusChecks(checks: PRStatusCheck[]): PRStatusCheck[] {
+  const seen = new Set<string>();
+  const result: PRStatusCheck[] = [];
+
+  for (const check of checks) {
+    if (seen.has(check.name)) {
+      continue;
+    }
+    seen.add(check.name);
+    result.push(check);
+  }
+
+  return result;
 }
 
 export class GitHubClient {
@@ -51,16 +96,12 @@ export class GitHubClient {
       sort: 'updated',
       direction: 'desc',
     });
-    return data.map((pr) => ({
-      number: pr.number,
-      title: pr.title,
-      author: pr.user?.login || 'unknown',
-      head_sha: pr.head.sha,
-      base_branch: pr.base.ref,
-      state: pr.state,
-      created_at: pr.created_at,
-      updated_at: pr.updated_at,
-    }));
+    return data.map((pr) => mapPullRequest(pr));
+  }
+
+  async getPullRequest(owner: string, repo: string, number: number): Promise<GitHubPR> {
+    const { data } = await this.octokit.pulls.get({ owner, repo, pull_number: number });
+    return mapPullRequest(data);
   }
 
   async getPRState(owner: string, repo: string, number: number): Promise<{ state: string; merged: boolean }> {
@@ -68,64 +109,56 @@ export class GitHubClient {
     return { state: data.state, merged: data.merged };
   }
 
-  async getPRStatusChecks(owner: string, repo: string, number: number): Promise<PRStatusCheck[]> {
+  async getPRStatusChecks(owner: string, repo: string, number: number): Promise<PRStatusChecksResult> {
     try {
-      const response: any = await this.octokit.graphql(
-        `
-        query($owner: String!, $repo: String!, $number: Int!) {
-          repository(owner: $owner, name: $repo) {
-            pullRequest(number: $number) {
-              statusCheckRollup(first: 100) {
-                nodes {
-                  __typename
-                  ... on CheckRun {
-                    name
-                    status
-                    conclusion
-                    detailsUrl
-                  }
-                  ... on StatusContext {
-                    context
-                    state
-                    targetUrl
-                  }
-                }
-              }
-            }
-          }
-        }
-      `,
-        { owner, repo, number },
-      );
+      const { data: pull } = await this.octokit.pulls.get({ owner, repo, pull_number: number });
+      const ref = pull.head.sha;
 
-      const nodes = response.repository.pullRequest.statusCheckRollup.nodes || [];
-      return nodes.flatMap((node: any) => {
-        if (!node?.__typename) {
-          return [];
-        }
-
-        if (node.__typename === 'CheckRun') {
-          const state = node.status === 'COMPLETED' ? (node.conclusion || 'FAILURE') : 'PENDING';
-          return [{
-            name: node.name,
-            state,
-            detailsUrl: node.detailsUrl || null,
-          }];
-        }
-
-        if (node.__typename === 'StatusContext') {
-          return [{
-            name: node.context,
-            state: node.state,
-            detailsUrl: node.targetUrl || null,
-          }];
-        }
-
-        return [];
+      const { data: combinedStatus } = await this.octokit.repos.getCombinedStatusForRef({
+        owner,
+        repo,
+        ref,
+        per_page: 100,
       });
+
+      const statusContextChecks: PRStatusCheck[] = combinedStatus.statuses.map((status) => ({
+        name: status.context,
+        state: (status.state || 'PENDING').toUpperCase(),
+        detailsUrl: status.target_url,
+      }));
+
+      let checkRunChecks: PRStatusCheck[] = [];
+      try {
+        const { data: checkRuns } = await this.octokit.checks.listForRef({
+          owner,
+          repo,
+          ref,
+          per_page: 100,
+          filter: 'latest',
+        });
+
+        checkRunChecks = checkRuns.check_runs.map((checkRun) => ({
+          name: checkRun.name,
+          state: checkRun.status === 'completed'
+            ? (checkRun.conclusion || 'FAILURE').toUpperCase()
+            : 'PENDING',
+          detailsUrl: checkRun.details_url,
+        }));
+      } catch (err) {
+        console.warn('[github] checks.listForRef failed, continuing with combined status only:', err);
+      }
+
+      return {
+        checks: dedupeStatusChecks([...statusContextChecks, ...checkRunChecks]),
+        ok: true,
+      };
     } catch (err) {
-      console.error('[github] statusCheckRollup query failed:', err);
-      return [];
+      console.error('[github] failed to fetch PR status checks:', err);
+      return {
+        checks: [],
+        ok: false,
+        error: err instanceof Error ? err.message : String(err),
+      };
     }
   }
 
@@ -146,8 +179,17 @@ export class GitHubClient {
                 nodes {
                   id
                   isResolved
-                  comments(first: 20) {
+                  firstComment: comments(first: 1) {
                     nodes {
+                      databaseId
+                      author { login }
+                      body
+                      createdAt
+                    }
+                  }
+                  latestComments: comments(last: 100) {
+                    nodes {
+                      databaseId
                       author { login }
                       body
                       createdAt
@@ -164,9 +206,18 @@ export class GitHubClient {
 
       const threadNodes = response.repository.pullRequest.reviewThreads.nodes;
       const threads: ReviewThread[] = threadNodes.map((t: any) => ({
+        // Keep the thread starter as the first element for bot-thread filtering,
+        // then append the latest comments so follow-up detection sees recent replies.
         id: t.id,
         isResolved: t.isResolved,
-        comments: t.comments.nodes.map((c: any) => ({
+        comments: [
+          ...(t.firstComment?.nodes || []),
+          ...((t.latestComments?.nodes || []).filter((c: any) => {
+            const first = t.firstComment?.nodes?.[0];
+            return !(first && c.createdAt === first.createdAt && (c.author?.login || 'unknown') === (first.author?.login || 'unknown') && c.body === first.body);
+          })),
+        ].map((c: any) => ({
+          id: c.databaseId ?? null,
           author: c.author?.login || 'unknown',
           body: c.body,
           createdAt: c.createdAt,
@@ -187,19 +238,42 @@ export class GitHubClient {
     }
   }
 
-  async hasNewReplies(owner: string, repo: string, number: number, since: string): Promise<boolean> {
+  async getFollowupTargets(
+    owner: string,
+    repo: string,
+    number: number,
+    since: string,
+  ): Promise<{ botUser: string; targets: FollowupTarget[] }> {
     const botUser = await this.getBotUser();
     const { threads } = await this.getReviewThreads(owner, repo, number);
+    const targets: FollowupTarget[] = [];
 
     for (const thread of threads) {
       if (thread.isResolved) continue;
-      // Check if there are replies from non-bot users after 'since'
+
+      const parentCommentId = thread.comments[0]?.id;
+      if (!parentCommentId) continue;
+
       for (const comment of thread.comments.slice(1)) {
-        if (comment.author !== botUser && comment.createdAt > since) {
-          return true;
+        if (comment.author === botUser || comment.createdAt <= since || !comment.id) {
+          continue;
         }
+
+        targets.push({
+          threadId: thread.id,
+          parentCommentId,
+          replyCommentId: comment.id,
+          replyAuthor: comment.author,
+          replyCreatedAt: comment.createdAt,
+        });
       }
     }
-    return false;
+
+    return { botUser, targets };
+  }
+
+  async hasNewReplies(owner: string, repo: string, number: number, since: string): Promise<boolean> {
+    const { targets } = await this.getFollowupTargets(owner, repo, number, since);
+    return targets.length > 0;
   }
 }

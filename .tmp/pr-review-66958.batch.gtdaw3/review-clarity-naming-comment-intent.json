@@ -1,0 +1,18 @@
+{
+  "findings": [
+    {
+      "severity": "Major",
+      "title": "CleanupAllLocalEngines no longer tells callers that failures are log-only",
+      "why": "The exported cleanup API changed from an `error`-returning call to a fire-and-forget method, but the public name and doc comment still read like a normal cleanup operation instead of a best-effort, internal-logging path.",
+      "scope": "pkg/lightning/backend/local/local.go:839",
+      "anchor": {
+        "path": "pkg/lightning/backend/local/local.go",
+        "line": 840,
+        "side": "RIGHT"
+      },
+      "risk_if_unchanged": "Future callers can reasonably assume cleanup success is guaranteed or observable at the call site, which makes failure handling and operational debugging depend on hidden logger behavior instead of an explicit contract.",
+      "evidence": "In `pkg/dxf/importinto/task_executor.go`, the old `cleanupErr` handling was removed and the call site now just invokes `CleanupAllLocalEngines(...)`. At the same time, `pkg/lightning/backend/local/local.go` changed `CleanupAllLocalEngines` to return no value, while its unchanged doc comment still only says it is 'used for best-effort cleanup on error' and does not say that errors are swallowed and only emitted through internal logging.",
+      "change_request": "Prefer a name or doc update that makes the new contract explicit, for example documenting that this is a best-effort cleanup helper whose failures are logged internally and never returned to the caller."
+    }
+  ]
+}

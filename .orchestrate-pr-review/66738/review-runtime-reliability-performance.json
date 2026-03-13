@@ -1,0 +1,13 @@
+{
+  "findings": [
+    {
+      "severity": "Major",
+      "title": "Upfront read-range precomputation scales as jobKeys x statsFiles and bypasses the batch memory budget",
+      "why": "`LoadIngestData` now precomputes and retains start/end offsets for every job key against every stats file before producing the first batch. That changes the lookup state from per-batch O(statsFiles) to O(jobKeys * statsFiles), which is outside the engine's existing batch-oriented memory model.",
+      "scope": "pkg/lightning/backend/external/engine.go:521; pkg/lightning/backend/external/util.go:84",
+      "risk_if_unchanged": "Large imports with many split keys and many external files can spend gigabytes on this offset matrix and hit GC thrash or OOM before any ingest batch is emitted, turning the prop-scan optimization into a startup collapse under expected scale.",
+      "evidence": "`LoadIngestData` now calls `getReadRangeFromProps(ctx, e.jobKeys, e.statsFiles, e.storage)` once for the full key set. `getReadRangeFromProps` allocates two `[]uint64` slices of `len(paths)` for every key (`readRangesPerKey[i][0]` and `[1]`), so the backing arrays alone are `16 * len(jobKeys) * len(statsFiles)` bytes, plus slice headers. The surrounding engine comments still budget memory around keeping at most three batches resident.",
+      "change_request": "Can we keep the prop lookup streaming or batch-scoped instead of materializing the full key x file matrix? If scan reuse is important, keep only the current batch's offsets or switch to a compact cursor-based structure that stays within the existing batch memory budget."
+    }
+  ]
+}

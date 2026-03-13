@@ -1,0 +1,18 @@
+{
+  "findings": [
+    {
+      "severity": "Major",
+      "title": "ingestcli now requires external metrics initialization before first request",
+      "why": "The new `Observe` calls assume `ingestmetric.WriteAPIDuration` and `ingestmetric.IngestAPIDuration` are already populated, but `ingestmetric` itself never initializes them. That adds a hidden init-order requirement to an existing exported package.",
+      "scope": "pkg/ingestor/ingestcli/client.go:122-126 and pkg/ingestor/ingestcli/client.go:271-274; pkg/ingestor/ingestmetric/metric.go:39-49; pkg/metrics/metrics.go:81-102",
+      "anchor": {
+        "path": "pkg/ingestor/ingestcli/client.go",
+        "line": 125,
+        "side": "RIGHT"
+      },
+      "risk_if_unchanged": "Any consumer or focused test that uses `pkg/ingestor/ingestcli` without importing `pkg/metrics` first will panic on the first write or ingest call. That is a backward-compatibility break for the package and makes initialization order part of the runtime contract.",
+      "evidence": "`WriteAPIDuration` and `IngestAPIDuration` are package-level `prometheus.Observer` globals with zero-value nil interfaces in `pkg/ingestor/ingestmetric/metric.go`, and the only initializer is `ingestmetric.InitIngestMetrics()` from `pkg/metrics.InitMetrics()`. The new defers in `startChunkedHTTPRequest` and `Ingest` call `Observe(...)` unconditionally, so there is no local guard when `pkg/metrics` was never imported.",
+      "change_request": "Can we make `ingestcli` safe without depending on `pkg/metrics` side effects, for example by initializing default observers inside `ingestmetric` or by explicitly initializing the histogram before use? Please add a focused test for the no-`pkg/metrics` import path so this backward-compatibility contract stays covered."
+    }
+  ]
+}

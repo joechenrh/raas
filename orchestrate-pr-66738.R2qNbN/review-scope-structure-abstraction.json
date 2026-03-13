@@ -1,0 +1,10 @@
+I could not complete the requested `review-scope-structure-abstraction` pass in this subagent because the sandbox is broken at process startup.
+
+Every tool invocation failed before execution with the same error:
+`error applying legacy Linux sandbox restrictions: Sandbox(LandlockRestrict)`
+
+That affected:
+- `exec_command`, so I could not read `66738.diff` or inspect files under `/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66738`
+- `apply_patch`, so I also could not write `review-scope-structure-abstraction.json`
+
+I did not delegate to any additional subagents. To complete this exactly as requested, this subagent needs to be re-run with a functioning `workspace-write` sandbox, or you need to provide the diff and changed files inline.

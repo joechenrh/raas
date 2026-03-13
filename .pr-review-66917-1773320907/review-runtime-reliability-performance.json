@@ -1,0 +1,18 @@
+{
+  "findings": [
+    {
+      "severity": "Major",
+      "title": "Returned cast errors now embed the full rejected datum and can pin large row buffers",
+      "why": "`LogKVConvertFailed` now formats the original datum into `ErrCastValue` and returns it to the caller. On the import and Lightning encode paths, those datums share parser buffers, so turning the whole value into the returned error recreates the large-retained-allocation problem that the surrounding code is already trying to avoid.",
+      "scope": "pkg/lightning/backend/kv/base.go:315-361, reached from pkg/lightning/backend/kv/sql2kv.go:218-236 and pkg/executor/importer/kv_encode.go:89-94 and 186-191",
+      "anchor": {
+        "path": "pkg/lightning/backend/kv/base.go",
+        "line": 359,
+        "side": "RIGHT"
+      },
+      "risk_if_unchanged": "A single bad row with a large string or blob can allocate and retain a multi-megabyte error message until the chunk/job unwinds, causing avoidable memory spikes or OOM on the failure path instead of failing predictably.",
+      "evidence": "Both encode implementations explicitly defer `TruncateWarns()` because conversion errors can keep the parser buffer alive (`sql2kv.go:218-222`, `kv_encode.go:90-94`). The new code then calls `datumToValueStringForCastError(original)` with no size cap and feeds that into `ErrCastValue` (`base.go:359-361`). For `KindBytes` it first materializes a string and then lets `DatumsToStringSmart` render the full payload, including hex output for binary data.",
+      "change_request": "Seems no need to return the full offending value here; can we cap or summarize it the same way the logs do and keep the original cause wrapped? A bounded preview plus length/column metadata keeps the new message useful without re-pinning large row buffers on the error path."
+    }
+  ]
+}

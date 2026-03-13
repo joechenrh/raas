@@ -1,0 +1,32 @@
+{
+  "findings": [
+    {
+      "severity": "Major",
+      "title": "Write-side metric name reads like per-Write latency, but the code records one sample for the whole stream",
+      "why": "Prefer a stream- or session-scoped name here; the current `WriteAPIDuration` label suggests latency for each `Write(*WriteRequest)` call even though the timer covers the long-lived chunked PUT from `init` until `Recv` finishes.",
+      "scope": "pkg/ingestor/ingestmetric/metric.go:33; pkg/ingestor/ingestcli/client.go:115-126; pkg/ingestor/ingestcli/client_test.go:101-142",
+      "anchor": {
+        "path": "pkg/ingestor/ingestmetric/metric.go",
+        "line": 33,
+        "side": "RIGHT"
+      },
+      "risk_if_unchanged": "Latency dashboards and follow-on instrumentation can mix two different units of work: one sample per streaming write session on the write path versus one sample per request on the ingest path. That makes the write metric easy to misread and easy to double-instrument later.",
+      "evidence": "The write timer starts in `writeClient.init` before `startChunkedHTTPRequest`, is observed once in the goroutine defer, and `TestWriteClientDurationMetricObserveOnce` calls `client.Write(...)` twice while asserting the histogram count only increases by one.",
+      "change_request": "Prefer `WriteStreamDuration` or `WriteSessionDuration` (or similar), and add a short why-comment stating that one observation covers the full chunked write lifecycle rather than each `Write` call."
+    },
+    {
+      "severity": "Minor",
+      "title": "New metric package exports mutable observer vars without a clear external need",
+      "why": "Maybe keep these per-label observers private; exporting `WriteAPIDuration` and `IngestAPIDuration` makes initialization order and mutability part of the package contract even though the only non-test caller is the local ingest client.",
+      "scope": "pkg/ingestor/ingestmetric/metric.go:31-36; pkg/ingestor/ingestcli/client.go:125,273",
+      "anchor": {
+        "path": "pkg/ingestor/ingestmetric/metric.go",
+        "line": 34,
+        "side": "RIGHT"
+      },
+      "risk_if_unchanged": "Other packages can start depending on these vars directly, which turns an internal instrumentation detail into a compatibility burden and makes later renames or initialization refactors harder.",
+      "evidence": "A repo-wide search in this worktree shows `WriteAPIDuration` and `IngestAPIDuration` are only referenced from `pkg/ingestor/ingestcli/client.go`; the tests inspect `WriteIngestAPIDuration` instead of the per-label observers.",
+      "change_request": "Seems no need to expose the per-label observers as public vars; keep the histogram vec as the exported test or introspection surface if needed, and hide recording behind unexported observers or small observe helpers."
+    }
+  ]
+}

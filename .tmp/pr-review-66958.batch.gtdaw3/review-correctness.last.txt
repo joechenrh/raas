@@ -1,0 +1,8 @@
+The `review-correctness` skill was executed in a single child agent only, and it wrote the JSON output to [review-correctness.json](/mnt/data/joechenrh/raas/.tmp/pr-review-66958.batch.gtdaw3/review-correctness.json).
+
+Result:
+```json
+{"findings":[]}
+```
+
+The child agent reported no blockers and completed the review statically without running builds or tests.

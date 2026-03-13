@@ -1,0 +1,18 @@
+{
+  "findings": [
+    {
+      "severity": "Major",
+      "title": "Precomputing read ranges for every job key can exhaust memory before the first batch starts",
+      "why": "This now materializes a full `jobKeys x statsFiles x 2` offset table up front, and that allocation sits outside the engine's existing `memLimit`/buffer-pool controls.",
+      "scope": "pkg/lightning/backend/external/engine.go:521; pkg/lightning/backend/external/util.go:84",
+      "anchor": {
+        "path": "pkg/lightning/backend/external/util.go",
+        "line": 84,
+        "side": "RIGHT"
+      },
+      "risk_if_unchanged": "Large imports can hit heavy GC pressure or OOM before `LoadIngestData` emits any batch. The blast radius grows with both split-key count and file count, so the regression shows up exactly on the large-cloud-import workloads this path is meant to serve.",
+      "evidence": "`LoadIngestData` now calls `getReadRangeFromProps(ctx, e.jobKeys, e.statsFiles, e.storage)` once before entering the batching loop. `getReadRangeFromProps` then allocates two `[]uint64` arrays per job key, each sized to `len(paths)`. That is 16 bytes per `(jobKey, statsFile)` pair before slice overhead. The engine comments in the same file explicitly call out workloads with up to 500K SST files; even 64 job keys at that scale is already about 512 MiB of offset storage, and real region/split-key counts can be much higher.",
+      "change_request": "Can we keep this bounded by the active batch instead of materializing the whole matrix? A per-batch scan, a sliding window, or a per-file cursor/cache would preserve the optimization without introducing an unbounded allocation that bypasses `memLimit`. Please add a scale-focused test or validation case for large `jobKeys x statsFiles` inputs."
+    }
+  ]
+}

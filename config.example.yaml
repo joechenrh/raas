@@ -22,6 +22,8 @@ monitor:
   repos:
     - "owner/repo"
   scan_interval_seconds: 60
+  # Whether author replies should automatically trigger follow-up review runs
+  followup_enabled: true
 
 reviewer:
   # Command to invoke the LLM reviewer

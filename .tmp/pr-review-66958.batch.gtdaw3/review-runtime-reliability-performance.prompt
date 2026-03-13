@@ -1,0 +1,9 @@
+Invoke skill `review-runtime-reliability-performance` directly.
+
+Inputs: `code_path=/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66958`, `diff_filename=66958.diff`, `output_filename=/mnt/data/joechenrh/raas/.tmp/pr-review-66958.batch.gtdaw3/review-runtime-reliability-performance.json`.
+Write output JSON to exactly `output_filename`.
+Run this subagent with write-capable filesystem access matching the parent execution mode.
+Do not run in parent; execute in this subagent only.
+Do not delegate to additional subagents.
+Reviewer child processes must not call spawn_agent, collab, Task, or delegate to any additional subagents.
+Keep the working directory at /mnt/data/joechenrh/raas and use the reviewed checkout only via the provided writable scope.

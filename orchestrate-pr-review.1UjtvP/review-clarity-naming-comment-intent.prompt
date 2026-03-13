@@ -1,0 +1,6 @@
+Invoke skill `review-clarity-naming-comment-intent` directly.
+Inputs: `code_path=/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66943`, `diff_filename=66943.diff`, `output_filename=/mnt/data/joechenrh/raas/orchestrate-pr-review.1UjtvP/review-clarity-naming-comment-intent.json`.
+Write output JSON to exactly `output_filename`.
+Run this subagent with write-capable filesystem access matching the parent execution mode.
+Do not run in parent; execute in this subagent only.
+Do not delegate to additional subagents.
