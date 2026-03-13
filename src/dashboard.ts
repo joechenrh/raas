@@ -1338,12 +1338,12 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       if (prs.length) {
         if (needsAttention > 0) {
           summary = formatCount(prs.length, 'tracked pull request') + ' are in view, and ' +
-            formatCount(needsAttention, 'thread') + ' still need closure before the queue can settle. ' + nextScan + '.';
+            formatCount(needsAttention, 'thread') + ' still need closure before the queue can settle.';
         } else if (queue > 0) {
           summary = formatCount(prs.length, 'tracked pull request') + ' are in view, and the queue is moving with ' +
             formatCount(queue, 'active review') + '. ' + nextScan + '.';
         } else {
-          summary = formatCount(prs.length, 'tracked pull request') + ' are in view, and the queue feels clear for now. ' + nextScan + '.';
+          summary = formatCount(prs.length, 'tracked pull request') + ' are in view, and the queue feels clear for now.';
         }
       }
 

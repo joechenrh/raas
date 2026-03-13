@@ -1,8 +1,8 @@
 import path from 'node:path';
 import type { Config } from './config.js';
-import type { GitHubClient } from './github.js';
+import type { PR, Storage } from './db.js';
+import type { GitHubClient, GitHubPR } from './github.js';
 import { runCodexReview, type FollowupReviewMetadata } from './reviewer.js';
-import type { Storage } from './db.js';
 import { getTidbReviewGate, isTidbRepo } from './tidb-review-gate.js';
 
 let activeReviews = 0;
@@ -14,6 +14,29 @@ const failureCount = new Map<string, number>();  // repo#number -> consecutive f
 const MAX_RETRIES_PER_SCAN = 3;
 const NO_GO_CHANGES_STATUS = 'no-go-changes';
 const NO_GO_CHANGES_MESSAGE = 'No .go file changes in PR';
+type ReviewRunType = 'initial' | 'followup' | 'recheck';
+
+interface ScanPRContext {
+  owner: string;
+  repo: string;
+  repoFullName: string;
+  pr: GitHubPR;
+  tracked: PR;
+  existing?: PR;
+}
+
+type ReviewDecision =
+  | { kind: 'none' }
+  | { kind: 'log-only'; message: string; data?: Record<string, unknown> }
+  | { kind: 'set-status'; status: string; message: string; data?: Record<string, unknown> }
+  | {
+      kind: 'queue';
+      reviewType: ReviewRunType;
+      triggerReason: string;
+      message: string;
+      data?: Record<string, unknown>;
+      metadata?: string;
+    };
 
 function log(msg: string, data?: Record<string, unknown>) {
   const ts = new Date().toISOString();
@@ -42,16 +65,305 @@ function parseFollowupMetadata(raw: string | null): FollowupReviewMetadata | und
 }
 
 async function hasGoChangesOrMarkSkipped(
+  github: GitHubClient,
+  context: ScanPRContext,
+): Promise<ReviewDecision | undefined> {
+  const hasGoChanges = await github.hasGoChanges(context.owner, context.repo, context.pr.number);
+  if (!hasGoChanges) {
+    return {
+      kind: 'set-status',
+      status: NO_GO_CHANGES_STATUS,
+      message: `Skipping review for ${context.repoFullName}#${context.pr.number}: ${NO_GO_CHANGES_MESSAGE.toLowerCase()}`,
+    };
+  }
+  return undefined;
+}
+
+function upsertTrackedPR(storage: Storage, repoFullName: string, pr: GitHubPR): PR {
+  return storage.upsertPR({
+    repo: repoFullName,
+    number: pr.number,
+    title: pr.title,
+    author: pr.author,
+    head_sha: pr.head_sha,
+    state: pr.state,
+  });
+}
+
+function shouldTrackPR(
+  config: Config,
+  repoFullName: string,
+  pr: GitHubPR,
+  existing: PR | undefined,
+  monitoredUsers: Set<string>,
+  debugPRSet: Set<string>,
+): boolean {
+  if (config.debug.enabled && !debugPRSet.has(`${repoFullName}#${pr.number}`)) {
+    return false;
+  }
+
+  if (existing) {
+    return true;
+  }
+
+  if (config.monitor.ignore_before && pr.created_at < config.monitor.ignore_before) {
+    return false;
+  }
+
+  if (pr.base_branch !== 'master' && pr.base_branch !== 'main') {
+    return false;
+  }
+
+  if (pr.title.startsWith('[DNM]')) {
+    return false;
+  }
+
+  if (!config.debug.enabled && monitoredUsers.size > 0 && !monitoredUsers.has(pr.author.toLowerCase())) {
+    return false;
+  }
+
+  return true;
+}
+
+async function getTidbGateDecision(
+  github: GitHubClient,
+  context: ScanPRContext,
+  options: {
+    readyTriggerReason: string;
+    readyMessage: string;
+    waitingMessage: string;
+    errorMessage: string;
+  },
+): Promise<ReviewDecision> {
+  const gate = await getTidbReviewGate(github, context.owner, context.repo, context.pr.number);
+  if (gate.state === 'ready') {
+    return {
+      kind: 'queue',
+      reviewType: 'initial',
+      triggerReason: options.readyTriggerReason.replace('{reason}', gate.reason),
+      message: options.readyMessage,
+      data: { gate: gate.reason },
+    };
+  }
+  if (gate.state === 'waiting-ci') {
+    return {
+      kind: 'set-status',
+      status: 'waiting-ci',
+      message: options.waitingMessage,
+      data: { gate: gate.reason },
+    };
+  }
+  return {
+    kind: 'set-status',
+    status: 'ci-fetch-error',
+    message: options.errorMessage,
+    data: { gate: gate.reason },
+  };
+}
+
+async function determineNewPRDecision(
+  github: GitHubClient,
+  context: ScanPRContext,
+): Promise<ReviewDecision> {
+  const goChangeDecision = await hasGoChangesOrMarkSkipped(github, context);
+  if (goChangeDecision) {
+    return goChangeDecision;
+  }
+
+  if (!isTidbRepo(context.repoFullName)) {
+    return {
+      kind: 'queue',
+      reviewType: 'initial',
+      triggerReason: 'New PR detected',
+      message: `New PR: ${context.repoFullName}#${context.pr.number} "${context.pr.title}" by ${context.pr.author}`,
+    };
+  }
+
+  return getTidbGateDecision(github, context, {
+    readyTriggerReason: 'TiDB CI gate passed: {reason}',
+    readyMessage: `New TiDB PR ready for review: ${context.repoFullName}#${context.pr.number}`,
+    waitingMessage: `New TiDB PR waiting for CI gate: ${context.repoFullName}#${context.pr.number}`,
+    errorMessage: `New TiDB PR could not fetch CI gate: ${context.repoFullName}#${context.pr.number}`,
+  });
+}
+
+async function determineUpdatedPRDecision(
   storage: Storage,
   github: GitHubClient,
-  details: { prId: number; owner: string; repo: string; repoFullName: string; number: number },
-): Promise<boolean> {
-  const hasGoChanges = await github.hasGoChanges(details.owner, details.repo, details.number);
-  if (!hasGoChanges) {
-    storage.updatePRStatus(details.prId, NO_GO_CHANGES_STATUS);
-    log(`Skipping review for ${details.repoFullName}#${details.number}: ${NO_GO_CHANGES_MESSAGE.toLowerCase()}`);
+  context: ScanPRContext,
+): Promise<ReviewDecision> {
+  const goChangeDecision = await hasGoChangesOrMarkSkipped(github, context);
+  if (goChangeDecision) {
+    return goChangeDecision;
   }
-  return hasGoChanges;
+
+  if (!isTidbRepo(context.repoFullName)) {
+    if (context.existing?.review_status === 'reviewing') {
+      return { kind: 'none' };
+    }
+    return {
+      kind: 'queue',
+      reviewType: 'recheck',
+      triggerReason: 'New commits pushed',
+      message: `New commits on: ${context.repoFullName}#${context.pr.number}`,
+    };
+  }
+
+  if (context.existing && storage.hasPrimaryReviewRun(context.existing.id)) {
+    return {
+      kind: 'log-only',
+      message: `Skipping retrigger for TiDB PR after new commits: ${context.repoFullName}#${context.pr.number}`,
+    };
+  }
+
+  return getTidbGateDecision(github, context, {
+    readyTriggerReason: 'TiDB CI gate passed after new commits: {reason}',
+    readyMessage: `TiDB PR passed CI gate after new commits: ${context.repoFullName}#${context.pr.number}`,
+    waitingMessage: `TiDB PR still waiting for CI gate after new commits: ${context.repoFullName}#${context.pr.number}`,
+    errorMessage: `TiDB PR could not fetch CI gate after new commits: ${context.repoFullName}#${context.pr.number}`,
+  });
+}
+
+async function determineTidbWaitingDecision(
+  github: GitHubClient,
+  context: ScanPRContext,
+): Promise<ReviewDecision> {
+  const goChangeDecision = await hasGoChangesOrMarkSkipped(github, context);
+  if (goChangeDecision) {
+    return goChangeDecision;
+  }
+
+  return getTidbGateDecision(github, context, {
+    readyTriggerReason: 'TiDB CI gate passed: {reason}',
+    readyMessage: `TiDB PR passed CI gate: ${context.repoFullName}#${context.pr.number}`,
+    waitingMessage: `TiDB PR still waiting for CI gate: ${context.repoFullName}#${context.pr.number}`,
+    errorMessage: `TiDB PR could not fetch CI gate: ${context.repoFullName}#${context.pr.number}`,
+  });
+}
+
+function shouldRetryNow(repoFullName: string, prNumber: number): boolean {
+  const key = `${repoFullName}#${prNumber}`;
+  const failures = failureCount.get(key) || 0;
+  const backoffScans = Math.min(2 ** failures, 32);
+  return failures < MAX_RETRIES_PER_SCAN || failures % backoffScans === 0;
+}
+
+async function determineRetryDecision(
+  storage: Storage,
+  github: GitHubClient,
+  context: ScanPRContext,
+): Promise<ReviewDecision> {
+  const goChangeDecision = await hasGoChangesOrMarkSkipped(github, context);
+  if (goChangeDecision) {
+    return goChangeDecision;
+  }
+
+  if (context.existing && isTidbRepo(context.repoFullName) && storage.hasPrimaryReviewRun(context.existing.id)) {
+    return {
+      kind: 'log-only',
+      message: `Skipping retry for TiDB PR: ${context.repoFullName}#${context.pr.number} (one-shot review policy)`,
+    };
+  }
+
+  if (!shouldRetryNow(context.repoFullName, context.pr.number)) {
+    return { kind: 'none' };
+  }
+
+  const status = context.existing?.review_status;
+  return {
+    kind: 'queue',
+    reviewType: 'recheck',
+    triggerReason: status === 'failed' ? 'Retrying after failure' : 'Retrying stuck pending',
+    message: `Retrying ${status} PR: ${context.repoFullName}#${context.pr.number} (attempt ${(failureCount.get(`${context.repoFullName}#${context.pr.number}`) || 0) + 1})`,
+  };
+}
+
+async function determineFollowupDecision(
+  github: GitHubClient,
+  context: ScanPRContext,
+  errors: string[],
+): Promise<ReviewDecision> {
+  try {
+    const sinceTime = context.existing?.last_reviewed_at || context.existing?.created_at;
+    if (!sinceTime) {
+      return { kind: 'none' };
+    }
+
+    const followup = await github.getFollowupTargets(context.owner, context.repo, context.pr.number, sinceTime);
+    if (followup.targets.length === 0) {
+      return { kind: 'none' };
+    }
+
+    return {
+      kind: 'queue',
+      reviewType: 'followup',
+      triggerReason: 'Author replied to review comments',
+      metadata: JSON.stringify(followup),
+      message: `New replies on: ${context.repoFullName}#${context.pr.number}`,
+      data: {
+        botUser: followup.botUser,
+        targets: followup.targets.map((target) => ({
+          parentCommentId: target.parentCommentId,
+          replyCommentId: target.replyCommentId,
+        })),
+      },
+    };
+  } catch (err: any) {
+    errors.push(`Reply check failed for ${context.repoFullName}#${context.pr.number}: ${err.message}`);
+    return { kind: 'none' };
+  }
+}
+
+async function determineReviewDecision(
+  config: Config,
+  storage: Storage,
+  github: GitHubClient,
+  context: ScanPRContext,
+  errors: string[],
+): Promise<ReviewDecision> {
+  if (!context.existing) {
+    return determineNewPRDecision(github, context);
+  }
+
+  if (context.existing.head_sha !== context.pr.head_sha) {
+    return determineUpdatedPRDecision(storage, github, context);
+  }
+
+  if (isTidbRepo(context.repoFullName)
+    && (context.existing.review_status === 'waiting-ci' || context.existing.review_status === 'ci-fetch-error')) {
+    return determineTidbWaitingDecision(github, context);
+  }
+
+  if (context.existing.review_status === 'failed' || context.existing.review_status === 'pending') {
+    return determineRetryDecision(storage, github, context);
+  }
+
+  if (config.monitor.followup_enabled
+    && context.existing.review_status === 'reviewed'
+    && context.existing.unresolved_count > 0) {
+    return determineFollowupDecision(github, context, errors);
+  }
+
+  return { kind: 'none' };
+}
+
+function applyReviewDecision(storage: Storage, context: ScanPRContext, decision: ReviewDecision): number {
+  switch (decision.kind) {
+    case 'none':
+      return 0;
+    case 'log-only':
+      log(decision.message, decision.data);
+      return 0;
+    case 'set-status':
+      storage.updatePRStatus(context.tracked.id, decision.status);
+      log(decision.message, decision.data);
+      return 0;
+    case 'queue':
+      storage.updatePRStatus(context.tracked.id, 'pending');
+      storage.createReviewRun(context.tracked.id, decision.reviewType, decision.triggerReason, decision.metadata);
+      log(decision.message, decision.data);
+      return 1;
+  }
 }
 
 export async function scan(config: Config, storage: Storage, github: GitHubClient) {
@@ -86,223 +398,28 @@ export async function scan(config: Config, storage: Storage, github: GitHubClien
           const existing = storage.getPR(repoFullName, pr.number);
           const hasApprovedLabel = pr.labels.some((label) => label.toLowerCase() === 'approved');
 
-          // Debug mode: skip PRs not in the debug list
-          if (config.debug.enabled && !debugPRSet.has(`${repoFullName}#${pr.number}`)) {
+          if (!shouldTrackPR(config, repoFullName, pr, existing, monitoredUsers, debugPRSet)) {
             continue;
           }
 
-          if (!existing) {
-            // Skip PRs created before the configured cutoff time
-            if (config.monitor.ignore_before && pr.created_at < config.monitor.ignore_before) {
-              continue;
-            }
-
-            // Skip PRs not targeting master/main
-            if (pr.base_branch !== 'master' && pr.base_branch !== 'main') {
-              continue;
-            }
-
-            // Skip PRs with [DNM] prefix in title
-            if (pr.title.startsWith('[DNM]')) {
-              continue;
-            }
-
-            // Normal mode: filter by configured users (if any configured)
-            if (!config.debug.enabled && monitoredUsers.size > 0 && !monitoredUsers.has(pr.author.toLowerCase())) {
-              continue;
-            }
-          }
-
-          // Track PRs with an explicit approved label, but do not trigger review work for them.
+          const tracked = upsertTrackedPR(storage, repoFullName, pr);
           if (hasApprovedLabel) {
-            const tracked = storage.upsertPR({
-              repo: repoFullName,
-              number: pr.number,
-              title: pr.title,
-              author: pr.author,
-              head_sha: pr.head_sha,
-              state: pr.state,
-            });
             storage.updatePRStatus(tracked.id, 'approved');
             continue;
           }
 
           prsFound++;
 
-          if (!existing) {
-            // New PR detected
-            const inserted = storage.upsertPR({
-              repo: repoFullName,
-              number: pr.number,
-              title: pr.title,
-              author: pr.author,
-              head_sha: pr.head_sha,
-              state: pr.state,
-            });
-            const hasGoChanges = await hasGoChangesOrMarkSkipped(storage, github, {
-              prId: inserted.id,
-              owner,
-              repo,
-              repoFullName,
-              number: pr.number,
-            });
-            if (!hasGoChanges) {
-              continue;
-            }
-
-            if (isTidbRepo(repoFullName)) {
-              const gate = await getTidbReviewGate(github, owner, repo, pr.number);
-              if (gate.state === 'ready') {
-                storage.updatePRStatus(inserted.id, 'pending');
-                storage.createReviewRun(inserted.id, 'initial', `TiDB CI gate passed: ${gate.reason}`);
-                reviewsTriggered++;
-                log(`New TiDB PR ready for review: ${repoFullName}#${pr.number}`, { gate: gate.reason });
-              } else if (gate.state === 'waiting-ci') {
-                storage.updatePRStatus(inserted.id, 'waiting-ci');
-                log(`New TiDB PR waiting for CI gate: ${repoFullName}#${pr.number}`, { gate: gate.reason });
-              } else {
-                storage.updatePRStatus(inserted.id, 'ci-fetch-error');
-                log(`New TiDB PR could not fetch CI gate: ${repoFullName}#${pr.number}`, { gate: gate.reason });
-              }
-            } else {
-              storage.createReviewRun(inserted.id, 'initial', 'New PR detected');
-              reviewsTriggered++;
-              log(`New PR: ${repoFullName}#${pr.number} "${pr.title}" by ${pr.author}`);
-            }
-          } else if (existing.head_sha !== pr.head_sha) {
-            // New commits pushed
-            const tracked = storage.upsertPR({
-              repo: repoFullName,
-              number: pr.number,
-              title: pr.title,
-              author: pr.author,
-              head_sha: pr.head_sha,
-              state: pr.state,
-            });
-            const hasGoChanges = await hasGoChangesOrMarkSkipped(storage, github, {
-              prId: tracked.id,
-              owner,
-              repo,
-              repoFullName,
-              number: pr.number,
-            });
-            if (!hasGoChanges) {
-              continue;
-            }
-
-            if (isTidbRepo(repoFullName)) {
-              if (storage.hasPrimaryReviewRun(existing.id)) {
-                log(`Skipping retrigger for TiDB PR after new commits: ${repoFullName}#${pr.number}`);
-              } else {
-                const gate = await getTidbReviewGate(github, owner, repo, pr.number);
-                if (gate.state === 'ready') {
-                  storage.updatePRStatus(existing.id, 'pending');
-                  storage.createReviewRun(existing.id, 'initial', `TiDB CI gate passed after new commits: ${gate.reason}`);
-                  reviewsTriggered++;
-                  log(`TiDB PR passed CI gate after new commits: ${repoFullName}#${pr.number}`, { gate: gate.reason });
-                } else if (gate.state === 'waiting-ci') {
-                  storage.updatePRStatus(existing.id, 'waiting-ci');
-                  log(`TiDB PR still waiting for CI gate after new commits: ${repoFullName}#${pr.number}`, { gate: gate.reason });
-                } else {
-                  storage.updatePRStatus(existing.id, 'ci-fetch-error');
-                  log(`TiDB PR could not fetch CI gate after new commits: ${repoFullName}#${pr.number}`, { gate: gate.reason });
-                }
-              }
-            } else if (existing.review_status !== 'reviewing') {
-              storage.updatePRStatus(existing.id, 'pending');
-              storage.createReviewRun(existing.id, 'recheck', 'New commits pushed');
-              reviewsTriggered++;
-              log(`New commits on: ${repoFullName}#${pr.number}`);
-            }
-          } else if (isTidbRepo(repoFullName) && (existing.review_status === 'waiting-ci' || existing.review_status === 'ci-fetch-error')) {
-            const hasGoChanges = await hasGoChangesOrMarkSkipped(storage, github, {
-              prId: existing.id,
-              owner,
-              repo,
-              repoFullName,
-              number: pr.number,
-            });
-            if (!hasGoChanges) {
-              continue;
-            }
-
-            const gate = await getTidbReviewGate(github, owner, repo, pr.number);
-            if (gate.state === 'ready') {
-              storage.updatePRStatus(existing.id, 'pending');
-              storage.createReviewRun(existing.id, 'initial', `TiDB CI gate passed: ${gate.reason}`);
-              reviewsTriggered++;
-              log(`TiDB PR passed CI gate: ${repoFullName}#${pr.number}`, { gate: gate.reason });
-            } else if (gate.state === 'waiting-ci') {
-              storage.updatePRStatus(existing.id, 'waiting-ci');
-              log(`TiDB PR still waiting for CI gate: ${repoFullName}#${pr.number}`, { gate: gate.reason });
-            } else {
-              storage.updatePRStatus(existing.id, 'ci-fetch-error');
-              log(`TiDB PR could not fetch CI gate: ${repoFullName}#${pr.number}`, { gate: gate.reason });
-            }
-          } else if (existing.review_status === 'failed' || existing.review_status === 'pending') {
-            const hasGoChanges = await hasGoChangesOrMarkSkipped(storage, github, {
-              prId: existing.id,
-              owner,
-              repo,
-              repoFullName,
-              number: pr.number,
-            });
-            if (!hasGoChanges) {
-              continue;
-            }
-
-            if (isTidbRepo(repoFullName) && storage.hasPrimaryReviewRun(existing.id)) {
-              log(`Skipping retry for TiDB PR: ${repoFullName}#${pr.number} (one-shot review policy)`);
-              continue;
-            }
-            // Retry failed/pending reviews with exponential backoff
-            const key = `${repoFullName}#${pr.number}`;
-            const failures = failureCount.get(key) || 0;
-            const backoffScans = Math.min(2 ** failures, 32); // 1, 2, 4, 8, 16, 32 scans between retries
-            if (failures >= MAX_RETRIES_PER_SCAN && failures % backoffScans !== 0) {
-              // Skip this retry cycle (backoff)
-              continue;
-            }
-            storage.updatePRStatus(existing.id, 'pending');
-            storage.createReviewRun(existing.id, 'recheck', existing.review_status === 'failed' ? 'Retrying after failure' : 'Retrying stuck pending');
-            reviewsTriggered++;
-            log(`Retrying ${existing.review_status} PR: ${repoFullName}#${pr.number} (attempt ${failures + 1})`);
-          } else if (config.monitor.followup_enabled && existing.review_status === 'reviewed' && existing.unresolved_count > 0) {
-            // Check for new replies on unresolved threads
-            try {
-              const sinceTime = existing.last_reviewed_at || existing.created_at;
-              const followup = await github.getFollowupTargets(owner, repo, pr.number, sinceTime);
-              if (followup.targets.length > 0) {
-                storage.updatePRStatus(existing.id, 'pending');
-                storage.createReviewRun(
-                  existing.id,
-                  'followup',
-                  'Author replied to review comments',
-                  JSON.stringify(followup),
-                );
-                reviewsTriggered++;
-                log(`New replies on: ${repoFullName}#${pr.number}`, {
-                  botUser: followup.botUser,
-                  targets: followup.targets.map((target) => ({
-                    parentCommentId: target.parentCommentId,
-                    replyCommentId: target.replyCommentId,
-                  })),
-                });
-              }
-            } catch (err: any) {
-              errors.push(`Reply check failed for ${repoFullName}#${pr.number}: ${err.message}`);
-            }
-          } else {
-            // Update title/state if changed
-            storage.upsertPR({
-              repo: repoFullName,
-              number: pr.number,
-              title: pr.title,
-              author: pr.author,
-              head_sha: pr.head_sha,
-              state: pr.state,
-            });
-          }
+          const context: ScanPRContext = {
+            owner,
+            repo,
+            repoFullName,
+            pr,
+            tracked,
+            existing,
+          };
+          const decision = await determineReviewDecision(config, storage, github, context, errors);
+          reviewsTriggered += applyReviewDecision(storage, context, decision);
         }
 
         // Detect closed/merged PRs
