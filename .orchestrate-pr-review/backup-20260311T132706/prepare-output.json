@@ -1,1 +1,0 @@
-{"error":"Unable to invoke skill `prepare-pr-diff-worktree`: local command execution is blocked by sandbox error `Sandbox(LandlockRestrict)`, so the skill instructions could not be read and the skill could not be run for pr_link=https://github.com/pingcap/tidb/pull/66738 project_path=/mnt/data/joechenrh/raas/repos/pingcap/tidb."}

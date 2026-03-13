@@ -8,3 +8,18 @@ data/
 config.yaml
 repos/
 logs/
+
+# Temporary review artifacts
+.codex-pr-review-*/
+.orchestrate-pr-review-*/
+.orchestrate-pr-review/
+.pr-review-*/
+.tmp/
+orchestrate-pr-*/
+orchestrate-pr-review.*/
+pr-review-*/
+github-review-payload.json
+merged-review-output.json
+semantic-merged-review.json
+review-*.json
+review-*.log

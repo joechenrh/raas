@@ -1,1 +1,0 @@
-Invoked `review-correctness` in a single child agent, with no additional delegation. The agent wrote the result to [review-correctness.json](/mnt/data/joechenrh/raas/.tmp/codex-probe-reviewer/review-correctness.json) and emitted 1 finding.

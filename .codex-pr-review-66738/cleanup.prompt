@@ -1,4 +1,0 @@
-Invoke skill `cleanup-pr-diff-worktree` directly.
-Inputs: `work_tree=pr-66738`, `project_path=/mnt/data/joechenrh/raas/repos/pingcap/tidb`.
-Print exactly the skill JSON output as your final message.
-Do not delegate to additional subagents.

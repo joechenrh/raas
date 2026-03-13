@@ -1,1 +1,0 @@
-{"success":false,"work_tree":"pr-66738-1","project_path":"/mnt/data/joechenrh/raas/repos/pingcap/tidb","error":"sandbox blocked all local shell execution with Sandbox(LandlockRestrict), so the cleanup-pr-diff-worktree skill could not be executed"}

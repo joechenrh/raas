@@ -1,9 +1,0 @@
-Invoke skill `` directly.
-
-Inputs: `code_path=`, `diff_filename=66958.diff`, `output_filename=`.
-Write output JSON to exactly `output_filename`.
-Run this subagent with write-capable filesystem access matching the parent execution mode.
-Do not run in parent; execute in this subagent only.
-Do not delegate to additional subagents.
-Reviewer child processes must not call spawn_agent, collab, Task, or delegate to any additional subagents.
-Keep the working directory at  and use the reviewed checkout only via the provided writable scope.

@@ -1,3 +1,0 @@
-The subagent could not execute the local `review-scope-structure-abstraction` skill because its shell was blocked by `Sandbox(LandlockRestrict)` before any command ran, including `pwd`, `ls`, and `sed`. Because of that, it could not open the local `SKILL.md`, inspect `/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66738-1`, or write `/mnt/data/joechenrh/raas/pr-review-66738.AKwVmZ/review-scope-structure-abstraction.json`.
-
-No parent-side review work was performed. If you want this completed, the next step is to rerun with a subagent environment that actually permits local shell access under `workspace-write`, or explicitly allow the parent to execute the skill locally.

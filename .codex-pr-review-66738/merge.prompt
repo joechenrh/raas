@@ -1,4 +1,0 @@
-Invoke skill `merge-review-json-and-submit-pr-review` directly.
-Inputs: `pr_link=https://github.com/pingcap/tidb/pull/66738`, `input_files=/mnt/data/joechenrh/raas/.codex-pr-review-66738/review-clarity-naming-comment-intent.json,/mnt/data/joechenrh/raas/.codex-pr-review-66738/review-correctness.json,/mnt/data/joechenrh/raas/.codex-pr-review-66738/review-runtime-reliability-performance.json,/mnt/data/joechenrh/raas/.codex-pr-review-66738/review-scope-structure-abstraction.json,/mnt/data/joechenrh/raas/.codex-pr-review-66738/review-upgrade-compatibility-and-test-determinism.json`, `merged_output=/mnt/data/joechenrh/raas/.codex-pr-review-66738/merged-review-output.json`, `payload_output=/mnt/data/joechenrh/raas/.codex-pr-review-66738/github-review-payload.json`.
-Print exactly the skill JSON output as your final message.
-Do not delegate to additional subagents.

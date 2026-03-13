@@ -1,8 +1,0 @@
-I could not complete the `review-correctness` run in this subagent.
-
-Blocking issue:
-- Local file access is unavailable here. Every `exec_command` invocation fails before execution with `Sandbox(LandlockRestrict)`, including a trivial `pwd` in `/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66738`.
-- No MCP filesystem resources/templates are exposed as an alternative.
-- Without reading `66738.diff` and the referenced code, I can’t perform the required static correctness review or generate evidence-based JSON findings.
-
-Because of that, I did not fabricate `review-correctness.json`. If you want, I can retry once the subagent has a functioning workspace-read path.

@@ -1,8 +1,0 @@
-Invoke skill `review-runtime-reliability-performance` directly.
-Inputs: `code_path=/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66943`, `diff_filename=66943.diff`, `output_filename=/mnt/data/joechenrh/raas/orchestrate-pr-review.1UjtvP/retry-batch/review-runtime-reliability-performance.json`.
-Write output JSON to exactly `output_filename`.
-Execute the review entirely in this same child process.
-Forbidden for this task: `spawn_agent`, `collab`, `Task`, or any other delegation mechanism.
-Do not delegate to additional subagents.
-Use the repository-local skill registration from `/mnt/data/joechenrh/raas/AGENTS.md`.
-Keep child cwd at `/mnt/data/joechenrh/raas`; inspect `code_path` via the provided absolute path only.

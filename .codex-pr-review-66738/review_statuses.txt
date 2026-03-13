@@ -1,5 +1,0 @@
-review-clarity-naming-comment-intent 0
-review-correctness 0
-review-runtime-reliability-performance 0
-review-scope-structure-abstraction 0
-review-upgrade-compatibility-and-test-determinism 0

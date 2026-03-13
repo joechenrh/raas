@@ -1,8 +1,0 @@
-Blocked by the subagent sandbox. Every shell attempt, including `pwd` in `/mnt/data/joechenrh/raas`, fails immediately with a `Sandbox(LandlockRestrict)` panic before execution starts.
-
-Because of that, I could not:
-- open `/mnt/data/joechenrh/raas/ai-engineer/skills/review-upgrade-compatibility-and-test-determinism/SKILL.md`
-- inspect `/mnt/data/joechenrh/raas/repos/pingcap/tidb/worktrees/pr-66738-1/66738.diff`
-- write `/mnt/data/joechenrh/raas/pr-review-66738.AKwVmZ/review-upgrade-compatibility-and-test-determinism.json`
-
-I did not substitute a non-skill review flow, and I did not write a fabricated JSON file. If you want this completed, the subagent needs working workspace shell access first.

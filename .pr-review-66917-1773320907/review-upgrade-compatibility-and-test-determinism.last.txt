@@ -1,3 +1,0 @@
-Wrote the review JSON to [review-upgrade-compatibility-and-test-determinism.json](/mnt/data/joechenrh/raas/.pr-review-66917-1773320907/review-upgrade-compatibility-and-test-determinism.json).
-
-The payload contains 1 `Major` finding: the new `ErrCastValue` redaction only masks the explicit value field, while the copied `Reason` text can still leak the offending datum in redacted environments. I did not run builds or tests, per the skill’s static-analysis-only policy.
