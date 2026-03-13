@@ -1569,6 +1569,56 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       .skeleton-stat-secondary { height: 100px; border-radius: 18px; }
     }
 
+    /* Pagination */
+    .pagination {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 16px;
+      border-top: 1px solid rgba(255, 255, 255, 0.055);
+    }
+
+    .pagination-btn {
+      height: 32px;
+      min-width: 32px;
+      padding: 0 10px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-secondary);
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+    }
+
+    .pagination-btn:hover {
+      background: rgba(255, 255, 255, 0.09);
+      border-color: rgba(255, 255, 255, 0.14);
+      color: var(--text-primary);
+    }
+
+    .pagination-btn:disabled {
+      cursor: not-allowed;
+      opacity: 0.35;
+      pointer-events: none;
+    }
+
+    .pagination-btn.is-active {
+      background: rgba(155, 184, 255, 0.14);
+      border-color: rgba(155, 184, 255, 0.26);
+      color: var(--accent-strong);
+    }
+
+    .pagination-info {
+      color: var(--text-tertiary);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 0 8px;
+    }
+
     /* Reduced motion */
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after {
@@ -1695,6 +1745,48 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
           </tbody>
         </table>
       </div>
+    </section>
+
+    <section class="section">
+      <details class="section-details" id="merged-section">
+        <summary class="section-head section-head-toggle" aria-label="Toggle merged pull requests">
+          <div class="section-copy">
+            <div class="section-name">
+              <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path fill-rule="evenodd" d="M5 3.254V3.25a.75.75 0 01.005-.025l.001-.004.003-.012a.749.749 0 01.022-.065c.04-.1.122-.24.283-.388.222-.203.55-.356 1.036-.356.486 0 .814.153 1.036.356a.749.749 0 01.288.39l.005.025v.004A.75.75 0 018.25 4h.5a.75.75 0 010 1.5h-.073a2.188 2.188 0 01-1.327.496c-.473 0-.89-.178-1.2-.424L5.193 8l.957 2.428c.31-.246.727-.428 1.2-.428.473 0 .89.182 1.2.428l.957-2.428L8.55 5.572A.75.75 0 018.25 5.5h.5A.75.75 0 019 4.75v-.5A2.25 2.25 0 006.35 2.005a2.25 2.25 0 00-3.7 0A2.25 2.25 0 000 4.25v.5a.75.75 0 00.75.75h.5a.75.75 0 00.75-.75v-.002l.001-.004.003-.012a.749.749 0 01.305-.453c.222-.203.55-.356 1.036-.356.377 0 .66.1.873.237L5 3.254zm0 9.496v-.004a.749.749 0 00-.305-.453c-.222-.203-.55-.356-1.036-.356-.486 0-.814.153-1.036.356a.749.749 0 00-.305.453l-.001.004v.002a.75.75 0 01-.75.75h-.5A.75.75 0 010 12.75v-.5a2.25 2.25 0 012.65-2.245 2.25 2.25 0 013.7 0A2.25 2.25 0 019 12.25v.5a.75.75 0 01-.75.75h-.5a.75.75 0 01-.75-.75v-.002l-.001-.004a.749.749 0 00-.305-.453c-.222-.203-.55-.356-1.036-.356-.377 0-.66.1-.873.237L5 12.75z" fill="currentColor"/></svg>
+              Merged
+              <span class="section-count" id="merged-count">0</span>
+            </div>
+            <div class="section-subtitle" id="merged-summary">Previously merged pull requests.</div>
+          </div>
+          <svg class="section-toggle-chevron" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M6.22 3.22a.75.75 0 011.06 0l4.25 4.25a.75.75 0 010 1.06l-4.25 4.25a.75.75 0 01-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 010-1.06z" fill="currentColor"/></svg>
+        </summary>
+        <div class="card card-secondary" role="region" aria-label="Merged pull requests">
+          <table aria-label="Merged pull requests">
+            <colgroup>
+              <col style="width:36px">
+              <col style="width:130px">
+              <col class="title-col" style="width:320px">
+              <col style="width:120px">
+              <col style="width:110px">
+              <col style="width:150px">
+              <col style="width:110px">
+            </colgroup>
+            <thead>
+              <tr>
+                <th scope="col"><span class="sr-only">Expand</span></th>
+                <th scope="col">PR</th>
+                <th scope="col">Title</th>
+                <th scope="col">Author</th>
+                <th scope="col">Review</th>
+                <th scope="col">Comments</th>
+                <th scope="col">Last Review</th>
+              </tr>
+            </thead>
+            <tbody id="merged-body" aria-live="polite"></tbody>
+          </table>
+          <div class="pagination" id="merged-pagination"></div>
+        </div>
+      </details>
     </section>
 
     <section class="section">
@@ -2056,13 +2148,16 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     }
 
     function renderPRs(prs) {
+      const activePRs = prs.filter((pr) => pr.state !== 'merged');
+      const mergedPRs = prs.filter((pr) => pr.state === 'merged');
+
       const count = document.getElementById('pr-count');
       const summary = document.getElementById('pr-summary');
-      count.textContent = prs.length;
+      count.textContent = activePRs.length;
 
-      const unresolvedPRs = prs.filter((pr) => pr.unresolved_count > 0).length;
-      const activeReviews = prs.filter((pr) => pr.review_status === 'pending' || pr.review_status === 'reviewing').length;
-      summary.textContent = prs.length
+      const unresolvedPRs = activePRs.filter((pr) => pr.unresolved_count > 0).length;
+      const activeReviews = activePRs.filter((pr) => pr.review_status === 'pending' || pr.review_status === 'reviewing').length;
+      summary.textContent = activePRs.length
         ? unresolvedPRs > 0
           ? formatCount(unresolvedPRs, 'open conversation') + ' are keeping this queue from going quiet.'
           : activeReviews > 0
@@ -2070,19 +2165,35 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
             : 'No open conversations are pushing on the queue right now.'
         : 'No pull requests are being tracked yet.';
 
-      if (!prs.length) {
+      if (!activePRs.length) {
         document.getElementById('pr-body').innerHTML =
           '<tr><td colspan="9"><div class="empty">' +
           '<svg viewBox="0 0 16 16"><path fill-rule="evenodd" d="M11.5 7a4.499 4.499 0 11-8.998 0A4.499 4.499 0 0111.5 7zm-.82 4.74a6 6 0 111.06-1.06l3.04 3.04a.75.75 0 11-1.06 1.06l-3.04-3.04z"/></svg>' +
-          '<div>No pull requests are in the review queue yet.</div></div></td></tr>';
-        return;
+          '<div>No active pull requests in the review queue.</div></div></td></tr>';
+      } else {
+        let html = '';
+        for (const pr of activePRs) {
+          html += renderPRRow(pr, true);
+        }
+        document.getElementById('pr-body').innerHTML = html;
+
+        for (const pr of activePRs) {
+          if (pr.review_status === 'ci-failed') {
+            loadCIFailures(pr.id);
+          }
+        }
       }
 
-      let html = '';
-      for (const pr of prs) {
-        const resolved = pr.comment_count - pr.unresolved_count;
+      renderMergedPRs(mergedPRs);
+    }
+
+    function renderPRRow(pr, showAction) {
+      const resolved = pr.comment_count - pr.unresolved_count;
+      const cols = showAction ? 9 : 7;
+      let manualAction = '';
+
+      if (showAction) {
         const manualTitle = esc(pr.manual_trigger_reason || '');
-        let manualAction;
         if (pr.repo === 'pingcap/tidb') {
           if (pr.review_status === 'ci-failed') {
             manualAction = '<button class="btn btn-danger ci-triage-btn" data-id="' + pr.id + '">Triage CI</button>';
@@ -2094,40 +2205,90 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
         } else {
           manualAction = '<span class="action-note">TiDB only</span>';
         }
-
-        html +=
-          '<tr>' +
-            '<td><button class="expand-btn" data-id="' + pr.id + '" title="Show review runs" aria-label="Show review runs for PR #' + pr.number + '" aria-expanded="false">' +
-              '<svg viewBox="0 0 16 16" class="chevron"><path d="M6.22 3.22a.75.75 0 011.06 0l4.25 4.25a.75.75 0 010 1.06l-4.25 4.25a.75.75 0 01-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 010-1.06z"/></svg>' +
-            '</button></td>' +
-            '<td><span class="pr-repo">' + esc(pr.repo) + '</span><br>' +
-              '<a class="pr-link" href="https://github.com/' + esc(pr.repo) + '/pull/' + pr.number + '" target="_blank" rel="noreferrer noopener">#' + pr.number + '</a></td>' +
-            '<td><div class="pr-title" title="' + esc(pr.title) + '">' + esc(pr.title) + '</div></td>' +
-            '<td><span class="pr-author"><img class="avatar" src="https://github.com/' + esc(pr.author) + '.png?size=40" alt=""><span>' + esc(pr.author) + '</span></span></td>' +
-            '<td><span class="pill pill-' + pr.state + '"><span class="pill-dot"></span>' + esc(pr.state) + '</span></td>' +
-            '<td><span class="pill pill-' + pr.review_status + '"><span class="pill-dot"></span>' + esc(pr.review_status) + '</span></td>' +
-            '<td><div class="comment-group">' +
-              '<span class="comment-resolved">' + resolved + ' resolved</span>' +
-              '<span class="comment-open">' + pr.unresolved_count + ' open</span>' +
-            '</div></td>' +
-            '<td><span class="time">' + timeAgo(pr.last_reviewed_at) + '</span></td>' +
-            '<td class="action-col"><div class="actions-cell">' + manualAction + '</div></td>' +
-          '</tr>' +
-          '<tr class="runs-row hidden" id="runs-' + pr.id + '"><td colspan="9"><div class="runs-wrap"><div class="runs-label">Review Runs</div><div class="runs-list">Loading...</div></div></td></tr>' +
-          (pr.review_status === 'ci-failed'
-            ? '<tr class="ci-failures-row" id="ci-failures-' + pr.id + '"><td colspan="9"><div class="ci-failures-wrap"><div class="ci-failures-label">Failing CI Checks</div><div class="ci-failures-list">Loading...</div></div></td></tr>'
-            : '');
       }
 
-      document.getElementById('pr-body').innerHTML = html;
-
-      // Auto-load CI failure details for ci-failed PRs
-      for (const pr of prs) {
-        if (pr.review_status === 'ci-failed') {
-          loadCIFailures(pr.id);
-        }
-      }
+      return '<tr>' +
+          '<td><button class="expand-btn" data-id="' + pr.id + '" title="Show review runs" aria-label="Show review runs for PR #' + pr.number + '" aria-expanded="false">' +
+            '<svg viewBox="0 0 16 16" class="chevron"><path d="M6.22 3.22a.75.75 0 011.06 0l4.25 4.25a.75.75 0 010 1.06l-4.25 4.25a.75.75 0 01-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 010-1.06z"/></svg>' +
+          '</button></td>' +
+          '<td><span class="pr-repo">' + esc(pr.repo) + '</span><br>' +
+            '<a class="pr-link" href="https://github.com/' + esc(pr.repo) + '/pull/' + pr.number + '" target="_blank" rel="noreferrer noopener">#' + pr.number + '</a></td>' +
+          '<td><div class="pr-title" title="' + esc(pr.title) + '">' + esc(pr.title) + '</div></td>' +
+          '<td><span class="pr-author"><img class="avatar" src="https://github.com/' + esc(pr.author) + '.png?size=40" alt=""><span>' + esc(pr.author) + '</span></span></td>' +
+          (showAction ? '<td><span class="pill pill-' + pr.state + '"><span class="pill-dot"></span>' + esc(pr.state) + '</span></td>' : '') +
+          '<td><span class="pill pill-' + pr.review_status + '"><span class="pill-dot"></span>' + esc(pr.review_status) + '</span></td>' +
+          '<td><div class="comment-group">' +
+            '<span class="comment-resolved">' + resolved + ' resolved</span>' +
+            '<span class="comment-open">' + pr.unresolved_count + ' open</span>' +
+          '</div></td>' +
+          '<td><span class="time">' + timeAgo(pr.last_reviewed_at) + '</span></td>' +
+          (showAction ? '<td class="action-col"><div class="actions-cell">' + manualAction + '</div></td>' : '') +
+        '</tr>' +
+        '<tr class="runs-row hidden" id="runs-' + pr.id + '"><td colspan="' + cols + '"><div class="runs-wrap"><div class="runs-label">Review Runs</div><div class="runs-list">Loading...</div></div></td></tr>' +
+        (pr.review_status === 'ci-failed'
+          ? '<tr class="ci-failures-row" id="ci-failures-' + pr.id + '"><td colspan="' + cols + '"><div class="ci-failures-wrap"><div class="ci-failures-label">Failing CI Checks</div><div class="ci-failures-list">Loading...</div></div></td></tr>'
+          : '');
     }
+
+    const MERGED_PAGE_SIZE = 10;
+    let mergedPage = 0;
+    let mergedPRsCache = [];
+
+    function renderMergedPRs(mergedPRs) {
+      mergedPRsCache = mergedPRs;
+      document.getElementById('merged-count').textContent = mergedPRs.length;
+      document.getElementById('merged-summary').textContent = mergedPRs.length
+        ? formatCount(mergedPRs.length, 'merged pull request') + ' from the review history.'
+        : 'No merged pull requests yet.';
+
+      if (mergedPage * MERGED_PAGE_SIZE >= mergedPRs.length && mergedPage > 0) {
+        mergedPage = Math.max(0, Math.ceil(mergedPRs.length / MERGED_PAGE_SIZE) - 1);
+      }
+
+      renderMergedPage();
+    }
+
+    function renderMergedPage() {
+      const prs = mergedPRsCache;
+      const totalPages = Math.max(1, Math.ceil(prs.length / MERGED_PAGE_SIZE));
+      const start = mergedPage * MERGED_PAGE_SIZE;
+      const pageItems = prs.slice(start, start + MERGED_PAGE_SIZE);
+
+      if (!prs.length) {
+        document.getElementById('merged-body').innerHTML =
+          '<tr><td colspan="7"><div class="empty" style="padding:40px 32px">No merged pull requests.</div></td></tr>';
+        document.getElementById('merged-pagination').innerHTML = '';
+        return;
+      }
+
+      let html = '';
+      for (const pr of pageItems) {
+        html += renderPRRow(pr, false);
+      }
+      document.getElementById('merged-body').innerHTML = html;
+
+      let paginationHtml = '';
+      if (totalPages > 1) {
+        paginationHtml += '<button class="pagination-btn" data-merged-page="prev"' + (mergedPage === 0 ? ' disabled' : '') + ' aria-label="Previous page">&lsaquo;</button>';
+        for (let i = 0; i < totalPages; i++) {
+          paginationHtml += '<button class="pagination-btn' + (i === mergedPage ? ' is-active' : '') + '" data-merged-page="' + i + '" aria-label="Page ' + (i + 1) + '"' + (i === mergedPage ? ' aria-current="page"' : '') + '>' + (i + 1) + '</button>';
+        }
+        paginationHtml += '<button class="pagination-btn" data-merged-page="next"' + (mergedPage >= totalPages - 1 ? ' disabled' : '') + ' aria-label="Next page">&rsaquo;</button>';
+        paginationHtml += '<span class="pagination-info">' + (start + 1) + '–' + Math.min(start + MERGED_PAGE_SIZE, prs.length) + ' of ' + prs.length + '</span>';
+      }
+      document.getElementById('merged-pagination').innerHTML = paginationHtml;
+    }
+
+    document.addEventListener('click', (event) => {
+      const btn = event.target.closest('[data-merged-page]');
+      if (!btn || btn.disabled) return;
+      const val = btn.dataset.mergedPage;
+      const totalPages = Math.max(1, Math.ceil(mergedPRsCache.length / MERGED_PAGE_SIZE));
+      if (val === 'prev') mergedPage = Math.max(0, mergedPage - 1);
+      else if (val === 'next') mergedPage = Math.min(totalPages - 1, mergedPage + 1);
+      else mergedPage = parseInt(val, 10);
+      renderMergedPage();
+    });
 
     function renderScans(logs) {
       if (!logs.length) {
