@@ -345,7 +345,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       --border-soft: rgba(255, 255, 255, 0.085);
       --text-primary: #f5f7fa;
       --text-secondary: #b3bdc9;
-      --text-tertiary: #919cab;
+      --text-tertiary: #a0aab8;
       --accent: #9bb8ff;
       --accent-strong: #dce6ff;
       --reviewed: #c4d2f2;
@@ -355,9 +355,43 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       --danger: #ff9898;
       --shadow: 0 24px 56px rgba(0, 0, 0, 0.26);
       --ring: 0 0 0 4px rgba(155, 184, 255, 0.18);
+      --transition-fast: 0.12s ease;
+      --transition-normal: 0.2s ease;
+      --transition-slow: 0.3s ease;
     }
 
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+    .sr-only:focus {
+      position: fixed;
+      top: 8px;
+      left: 8px;
+      width: auto;
+      height: auto;
+      padding: 12px 16px;
+      margin: 0;
+      overflow: visible;
+      clip: auto;
+      white-space: normal;
+      z-index: 999;
+      background: var(--bg-top);
+      color: var(--accent-strong);
+      border-radius: 10px;
+      border: 2px solid var(--accent);
+      font-size: 14px;
+      font-weight: 600;
+    }
 
     body {
       min-height: 100vh;
@@ -789,7 +823,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       transition: border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
     }
 
-    .manual-add-input::placeholder { color: var(--text-tertiary); }
+    .manual-add-input::placeholder { color: var(--text-tertiary); opacity: 1; }
 
     .manual-add-input:hover {
       border-color: rgba(255, 255, 255, 0.13);
@@ -1082,12 +1116,14 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       color: #fff;
     }
 
-    .btn:disabled {
+    .btn:disabled,
+    .btn[aria-disabled="true"] {
       cursor: not-allowed;
       transform: none;
       color: var(--text-tertiary);
       background: rgba(255, 255, 255, 0.04);
       border-color: rgba(255, 255, 255, 0.07);
+      pointer-events: none;
     }
 
     .action-note {
@@ -1457,21 +1493,106 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       .section-tools { width: 100%; justify-content: flex-start; }
       .manual-add-input { width: 100%; }
     }
+
+    @media (max-width: 640px) {
+      .navbar { height: 56px; padding: 0 16px; gap: 12px; }
+      .nav-meta { display: none; }
+      .nav-next-scan { display: none; }
+      .page { padding: 20px 16px 40px; }
+      .masthead { gap: 16px; margin-bottom: 20px; }
+      .masthead-title { font-size: 28px; letter-spacing: -0.8px; }
+      .masthead-summary { font-size: 14px; }
+      .status-card { padding: 18px 16px; border-radius: 20px; }
+      .status-card-meta { grid-template-columns: 1fr; gap: 8px; }
+      .stats { grid-template-columns: 1fr; gap: 10px; margin-bottom: 24px; }
+      .stat-primary,
+      .stat-secondary { grid-column: span 1; }
+      .stat-primary { padding: 18px 16px; border-radius: 18px; }
+      .stat-primary-value { font-size: 40px; letter-spacing: -1.4px; }
+      .stat-secondary { padding: 16px 14px; border-radius: 18px; min-height: auto; gap: 12px; }
+      .stat-secondary-value { font-size: 26px; }
+      .section-head { gap: 12px; }
+      .section-name { font-size: 16px; }
+      .manual-add-form { flex-direction: column; gap: 8px; width: 100%; }
+      .manual-add-input { width: 100%; height: 38px; font-size: 14px; }
+      .btn { height: 38px; font-size: 12px; }
+      .card { border-radius: 18px; }
+      table { min-width: 700px; }
+      .lifecycle-legend { grid-template-columns: 1fr; }
+      .triage-mock { padding: 14px 16px; }
+    }
+
+    /* Skeleton loading */
+    @keyframes skeleton-pulse {
+      0%, 100% { opacity: 0.06; }
+      50% { opacity: 0.12; }
+    }
+
+    .skeleton {
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      animation: skeleton-pulse 1.8s ease-in-out infinite;
+    }
+
+    .skeleton-stats {
+      display: grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .skeleton-stat-primary {
+      grid-column: span 4;
+      height: 160px;
+      border-radius: 24px;
+    }
+
+    .skeleton-stat-secondary {
+      grid-column: span 2;
+      height: 144px;
+      border-radius: 24px;
+    }
+
+    .skeleton-row {
+      height: 56px;
+      margin-bottom: 2px;
+    }
+
+    @media (max-width: 1180px) {
+      .skeleton-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .skeleton-stat-primary,
+      .skeleton-stat-secondary { grid-column: span 1; }
+    }
+
+    @media (max-width: 640px) {
+      .skeleton-stats { grid-template-columns: 1fr; }
+      .skeleton-stat-primary { height: 120px; border-radius: 18px; }
+      .skeleton-stat-secondary { height: 100px; border-radius: 18px; }
+    }
+
+    /* Reduced motion */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
   </style>
 </head>
 <body>
-  <nav class="navbar">
+  <a class="sr-only" href="#pr-body">Skip to pull requests</a>
+  <nav class="navbar" role="navigation" aria-label="Main navigation">
     <div class="nav-left">
-      <div class="nav-logo">R</div>
+      <div class="nav-logo" aria-hidden="true">R</div>
       <div class="nav-title">
         <strong>RaaS</strong>
         <span>Review Operations</span>
       </div>
     </div>
     <div class="nav-right">
-      <div class="nav-meta" id="config-info"></div>
-      <div class="nav-status" id="live-status">
-        <span class="nav-dot"></span>
+      <div class="nav-meta" id="config-info" aria-label="Configuration"></div>
+      <div class="nav-status" id="live-status" role="status" aria-live="polite">
+        <span class="nav-dot" aria-hidden="true"></span>
         <span id="live-status-label">Live monitoring</span>
         <span class="nav-next-scan" id="next-scan-label">No schedule</span>
       </div>
@@ -1503,7 +1624,13 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       </div>
     </section>
 
-    <section class="stats" id="stats-row"></section>
+    <section class="stats" id="stats-row" role="region" aria-label="Review statistics">
+      <div class="skeleton skeleton-stat-primary" id="skel-stat-1"></div>
+      <div class="skeleton skeleton-stat-secondary" id="skel-stat-2"></div>
+      <div class="skeleton skeleton-stat-secondary" id="skel-stat-3"></div>
+      <div class="skeleton skeleton-stat-secondary" id="skel-stat-4"></div>
+      <div class="skeleton skeleton-stat-secondary" id="skel-stat-5"></div>
+    </section>
 
     <section class="section">
       <div class="section-head">
@@ -1516,20 +1643,23 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
           <div class="section-subtitle" id="pr-summary">Tracked pull requests and their current review state.</div>
         </div>
         <div class="section-tools">
-          <form class="manual-add-form" id="manual-add-form">
+          <form class="manual-add-form" id="manual-add-form" role="search" aria-label="Add pull request">
+            <label for="manual-add-input" class="sr-only">Pull request number or URL</label>
             <input
               id="manual-add-input"
               class="manual-add-input"
               type="text"
               placeholder="#66738 / pingcap/tidb#66738 / GitHub PR URL"
               autocomplete="off"
+              aria-describedby="manual-add-hint"
             >
+            <span id="manual-add-hint" class="sr-only">Enter a PR number, repo#number, or GitHub PR URL</span>
             <button class="btn btn-primary" id="manual-add-btn" type="submit">Add to Queue</button>
           </form>
         </div>
       </div>
-      <div class="card">
-        <table>
+      <div class="card" role="region" aria-label="Pull request list">
+        <table aria-label="Pull requests">
           <colgroup>
             <col style="width:36px">
             <col style="width:130px">
@@ -1543,25 +1673,33 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
           </colgroup>
           <thead>
             <tr>
-              <th></th>
-              <th>PR</th>
-              <th>Title</th>
-              <th>Author</th>
-              <th>State</th>
-              <th>Review</th>
-              <th>Comments</th>
-              <th>Last Review</th>
-              <th class="action-col">Action</th>
+              <th scope="col"><span class="sr-only">Expand</span></th>
+              <th scope="col">PR</th>
+              <th scope="col">Title</th>
+              <th scope="col">Author</th>
+              <th scope="col">State</th>
+              <th scope="col">Review</th>
+              <th scope="col">Comments</th>
+              <th scope="col">Last Review</th>
+              <th scope="col" class="action-col">Action</th>
             </tr>
           </thead>
-          <tbody id="pr-body"></tbody>
+          <tbody id="pr-body" aria-live="polite">
+            <tr><td colspan="9">
+              <div style="padding: 20px 16px; display: flex; flex-direction: column; gap: 6px;">
+                <div class="skeleton skeleton-row" id="skel-pr-1"></div>
+                <div class="skeleton skeleton-row" id="skel-pr-2"></div>
+                <div class="skeleton skeleton-row" id="skel-pr-3"></div>
+              </div>
+            </td></tr>
+          </tbody>
         </table>
       </div>
     </section>
 
     <section class="section">
-      <details class="section-details">
-        <summary class="section-head section-head-toggle">
+      <details class="section-details" id="scans-section">
+        <summary class="section-head section-head-toggle" aria-label="Toggle recent scans section">
           <div class="section-copy">
             <div class="section-name">
               <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path fill-rule="evenodd" d="M8 2.5a5.487 5.487 0 00-4.131 1.869l1.204 1.204A.25.25 0 014.896 6H1.25A.25.25 0 011 5.75V2.104a.25.25 0 01.427-.177l1.38 1.38A7.001 7.001 0 0115 8a.75.75 0 01-1.5 0A5.5 5.5 0 008 2.5zM2.5 8a.75.75 0 00-1.5 0 7.001 7.001 0 0012.193 4.693l1.38 1.38a.25.25 0 00.427-.177V10.25a.25.25 0 00-.25-.25h-3.646a.25.25 0 00-.177.427l1.204 1.204A5.5 5.5 0 012.5 8z"/></svg>
@@ -1572,17 +1710,17 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
           </div>
           <svg class="section-toggle-chevron" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M6.22 3.22a.75.75 0 011.06 0l4.25 4.25a.75.75 0 010 1.06l-4.25 4.25a.75.75 0 01-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 010-1.06z" fill="currentColor"/></svg>
         </summary>
-        <div class="card card-secondary">
-          <table>
+        <div class="card card-secondary" role="region" aria-label="Recent scans">
+          <table aria-label="Scan history">
             <thead>
               <tr>
-                <th>Time</th>
-                <th>PRs Found</th>
-                <th>Reviews Triggered</th>
-                <th>Status</th>
+                <th scope="col">Time</th>
+                <th scope="col">PRs Found</th>
+                <th scope="col">Reviews Triggered</th>
+                <th scope="col">Status</th>
               </tr>
             </thead>
-            <tbody id="scan-body"></tbody>
+            <tbody id="scan-body" aria-live="polite"></tbody>
           </table>
         </div>
       </details>
@@ -1758,7 +1896,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     </section>
   </div>
 
-  <div class="toast" id="toast">Updated</div>
+  <div class="toast" id="toast" role="alert" aria-live="assertive">Updated</div>
 
   <script>
     const RECENT_SCAN_LIMIT = ${RECENT_SCAN_LIMIT};
@@ -1959,7 +2097,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
 
         html +=
           '<tr>' +
-            '<td><button class="expand-btn" data-id="' + pr.id + '" title="Show review runs" aria-label="Show review runs">' +
+            '<td><button class="expand-btn" data-id="' + pr.id + '" title="Show review runs" aria-label="Show review runs for PR #' + pr.number + '" aria-expanded="false">' +
               '<svg viewBox="0 0 16 16" class="chevron"><path d="M6.22 3.22a.75.75 0 011.06 0l4.25 4.25a.75.75 0 010 1.06l-4.25 4.25a.75.75 0 01-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 010-1.06z"/></svg>' +
             '</button></td>' +
             '<td><span class="pr-repo">' + esc(pr.repo) + '</span><br>' +
@@ -2068,6 +2206,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       const chevron = btn.querySelector('.chevron');
       chevron.style.transform = hidden ? '' : 'rotate(90deg)';
       chevron.style.transition = 'transform 0.15s ease';
+      btn.setAttribute('aria-expanded', String(!hidden));
 
       if (!hidden) loadRuns(id);
     });
@@ -2210,6 +2349,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     loadConfig();
 
     let refreshTimer;
+    let isFirstLoad = true;
 
     async function refresh() {
       try {
@@ -2227,14 +2367,29 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
         renderStatus(status);
         setLiveStatus(true);
         setLastUpdated(new Date());
+        isFirstLoad = false;
       } catch (error) {
         console.error('Refresh failed', error);
         setLiveStatus(false);
         document.getElementById('status-card-summary').textContent = 'Connection interrupted. Retrying automatically.';
       }
 
+      scheduleRefresh();
+    }
+
+    function scheduleRefresh() {
+      clearTimeout(refreshTimer);
+      if (document.visibilityState === 'hidden') return;
       refreshTimer = setTimeout(refresh, 15000);
     }
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        refresh();
+      } else {
+        clearTimeout(refreshTimer);
+      }
+    });
 
     function showToast(message, isError) {
       const toast = document.getElementById('toast');
