@@ -703,6 +703,29 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       margin-bottom: 16px;
     }
 
+    .section-details { width: 100%; }
+    .section-details > summary { list-style: none; cursor: pointer; }
+    .section-details > summary::-webkit-details-marker { display: none; }
+    .section-details > summary::marker { display: none; content: ''; }
+
+    .section-head-toggle {
+      user-select: none;
+    }
+
+    .section-toggle-chevron {
+      flex-shrink: 0;
+      color: var(--text-tertiary);
+      transition: transform 0.2s ease;
+    }
+
+    .section-details[open] > summary .section-toggle-chevron {
+      transform: rotate(90deg);
+    }
+
+    .section-details > .card {
+      margin-top: 0;
+    }
+
     .section-copy {
       display: flex;
       flex-direction: column;
@@ -1194,6 +1217,234 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       background: rgba(38, 18, 21, 0.96);
     }
 
+    /* Lifecycle diagram */
+    .lifecycle-card {
+      padding: 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .lifecycle-diagram {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: 24px;
+    }
+
+    .lifecycle-svg {
+      display: block;
+      width: 100%;
+      max-width: 820px;
+      height: auto;
+      min-width: 620px;
+      margin: 0 auto;
+    }
+
+    .lc-node rect { stroke-width: 1.2; }
+
+    .lc-node text {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
+      font-size: 11.5px;
+      font-weight: 600;
+      text-anchor: middle;
+      fill: currentColor;
+    }
+
+    .lc-node-active rect { fill: rgba(155,184,255,0.10); stroke: rgba(155,184,255,0.28); }
+    .lc-node-active text { fill: #dce6ff; }
+    .lc-node-danger rect { fill: rgba(255,152,152,0.10); stroke: rgba(255,152,152,0.28); }
+    .lc-node-danger text { fill: #ff9898; }
+    .lc-node-reviewed rect { fill: rgba(196,210,242,0.10); stroke: rgba(196,210,242,0.28); }
+    .lc-node-reviewed text { fill: #c4d2f2; }
+    .lc-node-success rect { fill: rgba(158,210,180,0.10); stroke: rgba(158,210,180,0.28); }
+    .lc-node-success text { fill: #9ed2b4; }
+    .lc-node-muted rect { fill: rgba(255,255,255,0.05); stroke: rgba(255,255,255,0.10); }
+    .lc-node-muted text { fill: #b3bdc9; }
+
+    .lc-edge { stroke: rgba(155,184,255,0.35); stroke-width: 1.2; fill: none; }
+    .lc-edge-danger { stroke: rgba(255,152,152,0.35); }
+    .lc-edge-success { stroke: rgba(158,210,180,0.35); }
+    .lc-edge-muted { stroke: rgba(255,255,255,0.13); stroke-dasharray: 4 3; }
+
+    .lc-label {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
+      font-size: 9.5px;
+      font-weight: 600;
+      fill: rgba(255,255,255,0.35);
+      text-anchor: middle;
+    }
+    .lc-label-dim { fill: rgba(255,255,255,0.22); }
+
+    .lifecycle-legend {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0;
+      border-top: 1px solid var(--border-soft);
+      padding-top: 20px;
+    }
+
+    .lifecycle-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      height: 36px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    .lifecycle-legend-item .pill {
+      flex-shrink: 0;
+      width: 110px;
+      justify-content: center;
+      text-align: center;
+    }
+
+    .triage-example {
+      border-top: 1px solid var(--border-soft);
+      margin-top: 4px;
+      padding-top: 20px;
+    }
+
+    .triage-example > summary { list-style: none; cursor: pointer; user-select: none; }
+    .triage-example > summary::-webkit-details-marker { display: none; }
+    .triage-example > summary::marker { display: none; content: ''; }
+    .triage-example[open] > summary .section-toggle-chevron { transform: rotate(90deg); }
+    .triage-example > summary .section-toggle-chevron { margin-left: auto; }
+
+    .triage-example-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .triage-example-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .triage-example-link {
+      font-size: 11px;
+      color: var(--accent);
+      text-decoration: none;
+      opacity: 0.7;
+    }
+    .triage-example-link:hover { opacity: 1; text-decoration: underline; }
+
+    .triage-example-desc {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-bottom: 16px;
+      line-height: 1.5;
+    }
+
+    .triage-mock {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border-soft);
+      border-radius: 10px;
+      padding: 20px 24px;
+      font-size: 12.5px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      overflow-x: auto;
+    }
+
+    .triage-mock h4 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin: 0 0 12px 0;
+    }
+
+    .triage-mock table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 16px;
+      font-size: 12px;
+    }
+
+    .triage-mock th {
+      text-align: left;
+      font-weight: 600;
+      color: var(--text-secondary);
+      padding: 6px 12px 6px 0;
+      border-bottom: 1px solid var(--border-soft);
+    }
+
+    .triage-mock td {
+      padding: 6px 12px 6px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      vertical-align: top;
+    }
+
+    .triage-mock code {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 11px;
+      background: rgba(255,255,255,0.06);
+      padding: 1px 5px;
+      border-radius: 4px;
+      color: var(--text-primary);
+    }
+
+    .triage-classification {
+      display: inline-block;
+      font-size: 10.5px;
+      font-weight: 600;
+      padding: 1px 7px;
+      border-radius: 4px;
+    }
+    .triage-classification.flaky {
+      background: rgba(255,193,99,0.12);
+      color: #ffc163;
+    }
+    .triage-classification.infra {
+      background: rgba(155,184,255,0.12);
+      color: #9bb8ff;
+    }
+    .triage-classification.regression {
+      background: rgba(255,152,152,0.12);
+      color: #ff9898;
+    }
+
+    .triage-detail-block {
+      background: rgba(255,255,255,0.02);
+      border-left: 2px solid var(--border-soft);
+      padding: 8px 14px;
+      margin-bottom: 10px;
+      border-radius: 0 6px 6px 0;
+    }
+
+    .triage-detail-block strong {
+      color: var(--text-primary);
+      font-size: 12px;
+    }
+
+    .triage-detail-block .triage-detail-row {
+      display: flex;
+      gap: 6px;
+      margin-top: 3px;
+      font-size: 11.5px;
+    }
+
+    .triage-detail-block .triage-detail-row span:first-child {
+      color: var(--text-tertiary);
+      flex-shrink: 0;
+    }
+
+    .triage-mock-footer {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      font-style: italic;
+      border-top: 1px solid var(--border-soft);
+      padding-top: 10px;
+      margin-top: 8px;
+    }
+
+    @media (max-width: 900px) {
+      .lifecycle-legend { grid-template-columns: repeat(2, 1fr); }
+    }
+
     @media (max-width: 1180px) {
       .navbar,
       .page { padding-left: 24px; padding-right: 24px; }
@@ -1309,28 +1560,200 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     </section>
 
     <section class="section">
+      <details class="section-details">
+        <summary class="section-head section-head-toggle">
+          <div class="section-copy">
+            <div class="section-name">
+              <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path fill-rule="evenodd" d="M8 2.5a5.487 5.487 0 00-4.131 1.869l1.204 1.204A.25.25 0 014.896 6H1.25A.25.25 0 011 5.75V2.104a.25.25 0 01.427-.177l1.38 1.38A7.001 7.001 0 0115 8a.75.75 0 01-1.5 0A5.5 5.5 0 008 2.5zM2.5 8a.75.75 0 00-1.5 0 7.001 7.001 0 0012.193 4.693l1.38 1.38a.25.25 0 00.427-.177V10.25a.25.25 0 00-.25-.25h-3.646a.25.25 0 00-.177.427l1.204 1.204A5.5 5.5 0 012.5 8z"/></svg>
+              Recent Scans
+              <span class="section-count">${RECENT_SCAN_LIMIT}</span>
+            </div>
+            <div class="section-subtitle">Latest scan activity and review handoffs.</div>
+          </div>
+          <svg class="section-toggle-chevron" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M6.22 3.22a.75.75 0 011.06 0l4.25 4.25a.75.75 0 010 1.06l-4.25 4.25a.75.75 0 01-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 010-1.06z" fill="currentColor"/></svg>
+        </summary>
+        <div class="card card-secondary">
+          <table>
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>PRs Found</th>
+                <th>Reviews Triggered</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="scan-body"></tbody>
+          </table>
+        </div>
+      </details>
+    </section>
+
+    <section class="section">
       <div class="section-head">
         <div class="section-copy">
           <div class="section-name">
-            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path fill-rule="evenodd" d="M8 2.5a5.487 5.487 0 00-4.131 1.869l1.204 1.204A.25.25 0 014.896 6H1.25A.25.25 0 011 5.75V2.104a.25.25 0 01.427-.177l1.38 1.38A7.001 7.001 0 0115 8a.75.75 0 01-1.5 0A5.5 5.5 0 008 2.5zM2.5 8a.75.75 0 00-1.5 0 7.001 7.001 0 0012.193 4.693l1.38 1.38a.25.25 0 00.427-.177V10.25a.25.25 0 00-.25-.25h-3.646a.25.25 0 00-.177.427l1.204 1.204A5.5 5.5 0 012.5 8z"/></svg>
-            Recent Scans
-            <span class="section-count">${RECENT_SCAN_LIMIT}</span>
+            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path fill-rule="evenodd" d="M1.5 8a6.5 6.5 0 1113 0 6.5 6.5 0 01-13 0zM8 0a8 8 0 100 16A8 8 0 008 0zm.5 4.75a.75.75 0 00-1.5 0v3.5a.75.75 0 00.37.65l2.5 1.5a.75.75 0 10.76-1.3L8.5 7.94V4.75z"/></svg>
+            Review Lifecycle
           </div>
-          <div class="section-subtitle">Latest scan activity and review handoffs.</div>
+          <div class="section-subtitle">How a pull request moves through the review pipeline.</div>
         </div>
       </div>
-      <div class="card card-secondary">
-        <table>
-          <thead>
-            <tr>
-              <th>Time</th>
-              <th>PRs Found</th>
-              <th>Reviews Triggered</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody id="scan-body"></tbody>
-        </table>
+      <div class="card lifecycle-card">
+        <div class="lifecycle-diagram">
+          <svg viewBox="0 -16 800 190" xmlns="http://www.w3.org/2000/svg" class="lifecycle-svg">
+            <!--
+              Grid: 5 columns x 2 rows.  Orthogonal edges with r=8 rounded corners.
+              Col centers:  70   220   390   560   730
+              Row centers:  40   120
+              Node: w=112 h=36 rx=10  (wide: w=120)
+              Edges: top=22 bottom=58 left=cx-56 right=cx+56  (wide: cx-60/+60)
+            -->
+            <defs>
+              <marker id="ah" markerWidth="7" markerHeight="6" refX="6.5" refY="3" orient="auto"><path d="M0.5,0.5 L6,3 L0.5,5.5" fill="none" stroke="rgba(155,184,255,0.5)" stroke-width="1" stroke-linejoin="round"/></marker>
+              <marker id="ah-r" markerWidth="7" markerHeight="6" refX="6.5" refY="3" orient="auto"><path d="M0.5,0.5 L6,3 L0.5,5.5" fill="none" stroke="rgba(255,152,152,0.5)" stroke-width="1" stroke-linejoin="round"/></marker>
+              <marker id="ah-g" markerWidth="7" markerHeight="6" refX="6.5" refY="3" orient="auto"><path d="M0.5,0.5 L6,3 L0.5,5.5" fill="none" stroke="rgba(158,210,180,0.5)" stroke-width="1" stroke-linejoin="round"/></marker>
+              <marker id="ah-m" markerWidth="7" markerHeight="6" refX="6.5" refY="3" orient="auto"><path d="M0.5,0.5 L6,3 L0.5,5.5" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1" stroke-linejoin="round"/></marker>
+            </defs>
+
+            <!-- Row 0 -->
+            <g class="lc-node lc-node-muted"><rect x="14" y="22" width="112" height="36" rx="10"/><text x="70" y="40" dy="0.35em">New PR</text></g>
+            <g class="lc-node lc-node-active"><rect x="160" y="22" width="120" height="36" rx="10"/><text x="220" y="40" dy="0.35em">waiting-ci</text></g>
+            <g class="lc-node lc-node-active"><rect x="334" y="22" width="112" height="36" rx="10"/><text x="390" y="40" dy="0.35em">pending</text></g>
+            <g class="lc-node lc-node-active"><rect x="500" y="22" width="120" height="36" rx="10"/><text x="560" y="40" dy="0.35em">reviewing</text></g>
+            <g class="lc-node lc-node-reviewed"><rect x="674" y="22" width="112" height="36" rx="10"/><text x="730" y="40" dy="0.35em">reviewed</text></g>
+
+            <!-- Row 1 -->
+            <g class="lc-node lc-node-danger"><rect x="160" y="102" width="120" height="36" rx="10"/><text x="220" y="120" dy="0.35em">ci-failed</text></g>
+            <g class="lc-node lc-node-danger"><rect x="504" y="102" width="112" height="36" rx="10"/><text x="560" y="120" dy="0.35em">failed</text></g>
+            <g class="lc-node lc-node-success"><rect x="674" y="102" width="112" height="36" rx="10"/><text x="730" y="120" dy="0.35em">resolved</text></g>
+
+            <!-- === Edges === -->
+
+            <!-- 1. New PR → waiting-ci (straight) -->
+            <line x1="126" y1="40" x2="156" y2="40" class="lc-edge" marker-end="url(#ah)"/>
+            <text x="141" y="34" class="lc-label">TiDB</text>
+
+            <!-- 2. Non-TiDB: New PR top → up → right → down → pending top -->
+            <path d="M 70 22 V 8 A 8 8 0 0 1 78 0 H 382 A 8 8 0 0 1 390 8 V 18" class="lc-edge lc-edge-muted" marker-end="url(#ah-m)"/>
+            <text x="230" y="-4" class="lc-label lc-label-dim">non-TiDB</text>
+
+            <!-- 3. waiting-ci → pending (straight) -->
+            <line x1="280" y1="40" x2="330" y2="40" class="lc-edge" marker-end="url(#ah)"/>
+            <text x="305" y="34" class="lc-label">CI pass</text>
+
+            <!-- 4. waiting-ci → ci-failed (straight down) -->
+            <line x1="220" y1="58" x2="220" y2="98" class="lc-edge lc-edge-danger" marker-end="url(#ah-r)"/>
+            <text x="234" y="82" class="lc-label">fail</text>
+
+            <!-- 5. Recover: ci-failed left → left → up → right → waiting-ci left -->
+            <path d="M 160 120 H 148 A 8 8 0 0 1 140 112 V 48 A 8 8 0 0 1 148 40 H 156" class="lc-edge" marker-end="url(#ah)"/>
+            <text x="112" y="80" class="lc-label lc-label-dim">recover</text>
+
+            <!-- 6. pending → reviewing (straight) -->
+            <line x1="446" y1="40" x2="496" y2="40" class="lc-edge" marker-end="url(#ah)"/>
+            <text x="471" y="34" class="lc-label">run</text>
+
+            <!-- 7. reviewing → reviewed (straight) -->
+            <line x1="620" y1="40" x2="670" y2="40" class="lc-edge lc-edge-success" marker-end="url(#ah-g)"/>
+            <text x="645" y="34" class="lc-label">done</text>
+
+            <!-- 8. reviewing → failed (straight down) -->
+            <line x1="560" y1="58" x2="560" y2="98" class="lc-edge lc-edge-danger" marker-end="url(#ah-r)"/>
+            <text x="574" y="82" class="lc-label">error</text>
+
+            <!-- 9. Retry: failed top → up to y=80 → left to x=396 → up → pending bottom -->
+            <path d="M 560 102 V 88 A 8 8 0 0 0 552 80 H 404 A 8 8 0 0 1 396 72 V 58" class="lc-edge" marker-end="url(#ah)"/>
+            <text x="478" y="74" class="lc-label">retry</text>
+
+            <!-- 10. reviewed → resolved (straight down) -->
+            <line x1="730" y1="58" x2="730" y2="98" class="lc-edge lc-edge-success" marker-end="url(#ah-g)"/>
+            <text x="766" y="82" class="lc-label lc-label-dim">resolve</text>
+
+            <!-- 11. Recheck: resolved bottom → down to y=158 → left to x=384 → up → pending bottom -->
+            <path d="M 730 138 V 150 A 8 8 0 0 1 722 158 H 392 A 8 8 0 0 1 384 150 V 58" class="lc-edge lc-edge-muted" marker-end="url(#ah-m)"/>
+            <text x="557" y="170" class="lc-label lc-label-dim">recheck</text>
+          </svg>
+        </div>
+        <div class="lifecycle-legend">
+          <div class="lifecycle-legend-item"><span class="pill pill-waiting-ci"><span class="pill-dot"></span>waiting-ci</span>CI checks still running</div>
+          <div class="lifecycle-legend-item"><span class="pill pill-ci-failed"><span class="pill-dot"></span>ci-failed</span>CI failed, use Triage CI</div>
+          <div class="lifecycle-legend-item"><span class="pill pill-pending"><span class="pill-dot"></span>pending</span>Review queued</div>
+          <div class="lifecycle-legend-item"><span class="pill pill-reviewing"><span class="pill-dot"></span>reviewing</span>Codex running</div>
+          <div class="lifecycle-legend-item"><span class="pill pill-reviewed"><span class="pill-dot"></span>reviewed</span>Has open comments</div>
+          <div class="lifecycle-legend-item"><span class="pill pill-resolved"><span class="pill-dot"></span>resolved</span>All comments resolved</div>
+          <div class="lifecycle-legend-item"><span class="pill pill-failed"><span class="pill-dot"></span>failed</span>Run errored, will retry</div>
+          <div class="lifecycle-legend-item"><span class="pill pill-approved"><span class="pill-dot"></span>approved</span>Has approved label</div>
+          <div class="lifecycle-legend-item"><span class="pill pill-no-go-changes"><span class="pill-dot"></span>no-go-changes</span>No .go files, skipped</div>
+        </div>
+
+        <details class="triage-example">
+          <summary class="triage-example-head">
+            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M8 1.5a6.5 6.5 0 100 13 6.5 6.5 0 000-13zM0 8a8 8 0 1116 0A8 8 0 010 8zm9-3a1 1 0 11-2 0 1 1 0 012 0zM6.75 8a.75.75 0 000 1.5h.5v2h-.5a.75.75 0 000 1.5h2.5a.75.75 0 000-1.5H9V8z"/></svg>
+            <span class="triage-example-title">What is Triage CI?</span>
+            <a class="triage-example-link" href="https://github.com/GMHDBJD/skills/tree/main/dont-retest" target="_blank" rel="noopener">dont-retest skill &nearr;</a>
+            <svg class="section-toggle-chevron" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M6.22 3.22a.75.75 0 011.06 0l4.25 4.25a.75.75 0 010 1.06l-4.25 4.25a.75.75 0 01-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 010-1.06z" fill="currentColor"/></svg>
+          </summary>
+          <div class="triage-example-desc">
+            When a PR enters <strong>ci-failed</strong>, clicking <strong>Triage CI</strong> invokes Codex with the
+            <a class="triage-example-link" href="https://github.com/GMHDBJD/skills/tree/main/dont-retest" target="_blank" rel="noopener">dont-retest</a>
+            skill. It collects every failing CI check, extracts failure signatures from logs, classifies the root cause, and posts a structured report as a PR comment. Below is an example of the report it produces:
+          </div>
+
+          <div class="triage-mock">
+            <h4>CI Failure Triage Report</h4>
+            <table>
+              <thead>
+                <tr><th>Check</th><th>Classification</th><th>Confidence</th><th>Signature</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>idc-jenkins-ci-tidb/unit-test</code></td>
+                  <td><span class="triage-classification flaky">probable_flaky</span></td>
+                  <td>medium</td>
+                  <td><code>TestIndexMerge: timeout after 300s</code></td>
+                </tr>
+                <tr>
+                  <td><code>pull-unit-test-next-gen</code></td>
+                  <td><span class="triage-classification infra">probable_infra</span></td>
+                  <td>high</td>
+                  <td><code>OOMKilled</code></td>
+                </tr>
+                <tr>
+                  <td><code>idc-jenkins-ci-tidb/build</code></td>
+                  <td><span class="triage-classification regression">pr_regression</span></td>
+                  <td>high</td>
+                  <td><code>planner/core: undefined: plannercore.NewCtx</code></td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div class="triage-detail-block">
+              <strong><code>idc-jenkins-ci-tidb/unit-test</code> &mdash; <span class="triage-classification flaky">probable_flaky</span> (medium)</strong>
+              <div class="triage-detail-row"><span>Failing test:</span> <span><code>TestIndexMerge</code> in <code>pkg/executor/test/...</code></span></div>
+              <div class="triage-detail-row"><span>Signature:</span> <span><code>timeout after 300s</code></span></div>
+              <div class="triage-detail-row"><span>Evidence:</span> <span>This test has timed out 3 times this week on unrelated PRs</span></div>
+              <div class="triage-detail-row"><span>Log:</span> <span><a class="triage-example-link" href="#" onclick="return false">Jenkins link &nearr;</a></span></div>
+            </div>
+
+            <div class="triage-detail-block">
+              <strong><code>pull-unit-test-next-gen</code> &mdash; <span class="triage-classification infra">probable_infra</span> (high)</strong>
+              <div class="triage-detail-row"><span>Failing test:</span> <span>N/A (infrastructure failure)</span></div>
+              <div class="triage-detail-row"><span>Signature:</span> <span><code>OOMKilled</code></span></div>
+              <div class="triage-detail-row"><span>Evidence:</span> <span>Pod killed by OOM before tests started</span></div>
+              <div class="triage-detail-row"><span>Log:</span> <span><a class="triage-example-link" href="#" onclick="return false">Prow link &nearr;</a></span></div>
+            </div>
+
+            <div class="triage-detail-block">
+              <strong><code>idc-jenkins-ci-tidb/build</code> &mdash; <span class="triage-classification regression">pr_regression</span> (high)</strong>
+              <div class="triage-detail-row"><span>Failing test:</span> <span><code>build</code> (compilation error)</span></div>
+              <div class="triage-detail-row"><span>Signature:</span> <span><code>planner/core: undefined: plannercore.NewCtx</code></span></div>
+              <div class="triage-detail-row"><span>Evidence:</span> <span>Error is in <code>pkg/planner/core/</code>, touched by this PR</span></div>
+              <div class="triage-detail-row"><span>Log:</span> <span><a class="triage-example-link" href="#" onclick="return false">Jenkins link &nearr;</a></span></div>
+            </div>
+
+            <div class="triage-mock-footer">Generated by RaaS CI Triage &mdash; report only, no actions taken</div>
+          </div>
+        </details>
       </div>
     </section>
   </div>
