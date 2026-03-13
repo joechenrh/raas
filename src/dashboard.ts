@@ -1927,7 +1927,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
           <div class="lifecycle-legend-item"><span class="pill pill-no-go-changes"><span class="pill-dot"></span>no-go-changes</span>No .go files, skipped</div>
         </div>
 
-        <details class="triage-example">
+        <details class="triage-example" open>
           <summary class="triage-example-head">
             <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M8 1.5a6.5 6.5 0 100 13 6.5 6.5 0 000-13zM0 8a8 8 0 1116 0A8 8 0 010 8zm9-3a1 1 0 11-2 0 1 1 0 012 0zM6.75 8a.75.75 0 000 1.5h.5v2h-.5a.75.75 0 000 1.5h2.5a.75.75 0 000-1.5H9V8z"/></svg>
             <span class="triage-example-title">What is Triage CI?</span>
