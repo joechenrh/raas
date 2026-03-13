@@ -55,30 +55,13 @@ function normalizeStringList(value: unknown, fieldName: string): string[] {
   }).filter((entry) => entry.length > 0);
 }
 
-const DEFAULT_REVIEW_PROMPT = `Invoke skill \`orchestrate-github-pr-review\` directly.
+const DEFAULT_REVIEW_PROMPT = `Invoke skill \`pr-review\` with pr_link={pr_link} and project_path={project_path}.
+Return the orchestration status JSON after the skill finishes.`;
 
-Inputs:
-- \`pr_link={pr_link}\`
-- \`project_path={project_path}\`
-
-Requirements:
-1. Follow the repository-local \`AGENTS.md\` skill registration.
-2. Do not reimplement the workflow manually.
-3. Do not use a non-skill fallback review flow.
-4. Return the orchestration status JSON after the skill finishes.
-5. If the review finds nothing actionable, still submit one comment-only review summary and never approve.
-6. When using child \`codex exec\` reviewers, keep the child working directory at this repository root so \`AGENTS.md\` and skill files remain visible; grant \`project_path\` or the prepared worktree via additional writable scope instead of switching child cwd there.`;
-
-const DEFAULT_TRIAGE_PROMPT = `Invoke skill \`dont-retest\` directly.
-
-Inputs:
-- \`pr_link={pr_link}\`
-
-Requirements:
-1. Follow the repository-local \`AGENTS.md\` skill registration.
-2. Generate a CI failure triage report only — do not take automated actions (no retest, no issue filing).
-3. Post the triage report as a PR comment on {pr_link}.
-4. Return a JSON status summary after the skill finishes.`;
+const DEFAULT_TRIAGE_PROMPT = `Invoke skill \`dont-retest\` with pr_link={pr_link}.
+Generate a CI failure triage report only — do not take automated actions.
+Post the triage report as a PR comment on {pr_link}.
+Return a JSON status summary after the skill finishes.`;
 
 const DEFAULT_FOLLOWUP_PROMPT = `You are following up on your code review for PR #{number} in repository {repo}.
 

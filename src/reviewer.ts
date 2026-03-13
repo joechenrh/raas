@@ -61,17 +61,6 @@ function normalizeReviewerArgs(args: string[]): string[] {
   return normalized;
 }
 
-function hardenInitialReviewPrompt(prompt: string): string {
-  return `${prompt.trim()}
-
-Additional execution constraints:
-1. If the orchestration uses \`codex exec\` reviewer child processes, each child process is already the required reviewer subagent.
-2. Reviewer child processes must run the named skill directly in that same process.
-3. Reviewer child processes must not call \`spawn_agent\`, \`collab\`, \`Task\`, or delegate to any additional subagents.
-4. Keep reviewer child working directory at this repository root and grant the reviewed checkout via additional writable scope instead of switching child cwd there.
-`;
-}
-
 function hasExplicitCodexCdArg(args: string[]): boolean {
   return args.includes('-C') || args.includes('--cd');
 }
@@ -149,9 +138,6 @@ export async function runCodexReview(
     reviewer_login: followupMetadata.botUser,
     followup_targets_json: JSON.stringify(followupMetadata.targets, null, 2),
   });
-  if (type === 'initial' || type === 'recheck' || type === 'ci-triage') {
-    prompt = hardenInitialReviewPrompt(prompt);
-  }
   const codexCwd = type === 'followup' ? projectPath : appRoot;
 
   // Create log file for this review
