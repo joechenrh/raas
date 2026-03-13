@@ -34,6 +34,14 @@ export interface ReviewRun {
   error: string | null;
 }
 
+export interface PendingReviewRun extends ReviewRun {
+  repo: string;
+  pr_number: number;
+  title: string;
+  pr_author: string;
+  pr_head_sha: string;
+}
+
 export interface ScanLog {
   id: number;
   started_at: string;
@@ -43,18 +51,230 @@ export interface ScanLog {
   errors: string | null;
 }
 
-export function initDatabase(dbPath?: string): Database.Database {
-  const p = dbPath || path.join(process.cwd(), 'data', 'raas.db');
-  const dir = path.dirname(p);
+export interface Stats {
+  total_prs: number;
+  open_prs: number;
+  pending_reviews: number;
+  reviewing: number;
+  total_comments: number;
+  total_unresolved: number;
+}
+
+export interface UpsertPRInput {
+  repo: string;
+  number: number;
+  title: string;
+  author: string;
+  head_sha: string;
+  state: string;
+}
+
+export interface ReviewRunUpdate {
+  status?: string;
+  started_at?: string;
+  completed_at?: string;
+  duration_ms?: number;
+  exit_code?: number;
+  error?: string;
+}
+
+export interface Storage {
+  close(): void;
+  upsertPR(pr: UpsertPRInput): PR;
+  getPR(repo: string, number: number): PR | undefined;
+  getPRById(id: number): PR | undefined;
+  getAllPRs(): PR[];
+  getOpenPRs(): PR[];
+  updatePRStatus(id: number, status: string): void;
+  updatePRCommentCounts(id: number, commentCount: number, unresolvedCount: number): void;
+  updatePRState(id: number, state: string): void;
+  createReviewRun(prId: number, type: string, triggerReason: string, metadata?: string): number;
+  updateReviewRun(id: number, updates: ReviewRunUpdate): void;
+  getReviewRuns(prId: number): ReviewRun[];
+  hasPrimaryReviewRun(prId: number): boolean;
+  getPendingReviewRuns(): PendingReviewRun[];
+  getRunningReviewCount(): number;
+  createScanLog(): number;
+  completeScanLog(id: number, prsFound: number, reviewsTriggered: number, errors?: string): void;
+  getRecentScanLogs(limit?: number): ScanLog[];
+  getStats(): Stats;
+  resetOrphanedReviews(): void;
+}
+
+class SQLiteStorage implements Storage {
+  constructor(private readonly database: Database.Database) {}
+
+  close(): void {
+    this.database.close();
+  }
+
+  upsertPR(pr: UpsertPRInput): PR {
+    const stmt = this.database.prepare(`
+      INSERT INTO prs (repo, number, title, author, head_sha, state)
+      VALUES (@repo, @number, @title, @author, @head_sha, @state)
+      ON CONFLICT(repo, number) DO UPDATE SET
+        title = @title,
+        author = @author,
+        head_sha = @head_sha,
+        state = @state,
+        updated_at = datetime('now')
+      RETURNING *
+    `);
+    return stmt.get(pr) as PR;
+  }
+
+  getPR(repo: string, number: number): PR | undefined {
+    return this.database.prepare('SELECT * FROM prs WHERE repo = ? AND number = ?').get(repo, number) as PR | undefined;
+  }
+
+  getPRById(id: number): PR | undefined {
+    return this.database.prepare('SELECT * FROM prs WHERE id = ?').get(id) as PR | undefined;
+  }
+
+  getAllPRs(): PR[] {
+    return this.database.prepare('SELECT * FROM prs ORDER BY repo ASC, number DESC').all() as PR[];
+  }
+
+  getOpenPRs(): PR[] {
+    return this.database.prepare("SELECT * FROM prs WHERE state = 'open' ORDER BY repo ASC, number DESC").all() as PR[];
+  }
+
+  updatePRStatus(id: number, status: string): void {
+    const now = new Date().toISOString();
+    if (status === 'reviewing') {
+      this.database.prepare('UPDATE prs SET review_status = ?, reviewing_since = ?, updated_at = ? WHERE id = ?')
+        .run(status, now, now, id);
+      return;
+    }
+
+    if (status === 'reviewed') {
+      this.database.prepare('UPDATE prs SET review_status = ?, reviewing_since = NULL, last_reviewed_at = ?, updated_at = ? WHERE id = ?')
+        .run(status, now, now, id);
+      return;
+    }
+
+    this.database.prepare('UPDATE prs SET review_status = ?, updated_at = ? WHERE id = ?')
+      .run(status, now, id);
+  }
+
+  updatePRCommentCounts(id: number, commentCount: number, unresolvedCount: number): void {
+    this.database.prepare("UPDATE prs SET comment_count = ?, unresolved_count = ?, last_scanned_at = datetime('now'), updated_at = datetime('now') WHERE id = ?")
+      .run(commentCount, unresolvedCount, id);
+  }
+
+  updatePRState(id: number, state: string): void {
+    this.database.prepare("UPDATE prs SET state = ?, updated_at = datetime('now') WHERE id = ?").run(state, id);
+  }
+
+  createReviewRun(prId: number, type: string, triggerReason: string, metadata?: string): number {
+    const result = this.database.prepare(
+      "INSERT INTO review_runs (pr_id, type, status, trigger_reason, metadata) VALUES (?, ?, 'pending', ?, ?)",
+    ).run(prId, type, triggerReason, metadata || null);
+    return Number(result.lastInsertRowid);
+  }
+
+  updateReviewRun(id: number, updates: ReviewRunUpdate): void {
+    const sets: string[] = [];
+    const values: Array<string | number> = [];
+
+    for (const [key, value] of Object.entries(updates)) {
+      if (value !== undefined) {
+        sets.push(`${key} = ?`);
+        values.push(value);
+      }
+    }
+
+    if (sets.length === 0) {
+      return;
+    }
+
+    values.push(id);
+    this.database.prepare(`UPDATE review_runs SET ${sets.join(', ')} WHERE id = ?`).run(...values);
+  }
+
+  getReviewRuns(prId: number): ReviewRun[] {
+    return this.database.prepare('SELECT * FROM review_runs WHERE pr_id = ? ORDER BY id DESC').all(prId) as ReviewRun[];
+  }
+
+  hasPrimaryReviewRun(prId: number): boolean {
+    const row = this.database.prepare(
+      "SELECT 1 as found FROM review_runs WHERE pr_id = ? AND type IN ('initial', 'recheck') LIMIT 1",
+    ).get(prId) as { found: number } | undefined;
+    return Boolean(row?.found);
+  }
+
+  getPendingReviewRuns(): PendingReviewRun[] {
+    return this.database.prepare(`
+      SELECT r.*, p.repo, p.number as pr_number, p.title, p.author as pr_author, p.head_sha as pr_head_sha
+      FROM review_runs r
+      JOIN prs p ON r.pr_id = p.id
+      WHERE r.status = 'pending'
+      ORDER BY r.id ASC
+    `).all() as PendingReviewRun[];
+  }
+
+  getRunningReviewCount(): number {
+    const row = this.database.prepare("SELECT COUNT(*) as count FROM review_runs WHERE status = 'running'").get() as { count: number };
+    return row.count;
+  }
+
+  createScanLog(): number {
+    const result = this.database.prepare("INSERT INTO scan_logs (started_at) VALUES (datetime('now'))").run();
+    return Number(result.lastInsertRowid);
+  }
+
+  completeScanLog(id: number, prsFound: number, reviewsTriggered: number, errors?: string): void {
+    this.database.prepare("UPDATE scan_logs SET completed_at = datetime('now'), prs_found = ?, reviews_triggered = ?, errors = ? WHERE id = ?")
+      .run(prsFound, reviewsTriggered, errors || null, id);
+  }
+
+  getRecentScanLogs(limit: number = 20): ScanLog[] {
+    return this.database.prepare('SELECT * FROM scan_logs ORDER BY id DESC LIMIT ?').all(limit) as ScanLog[];
+  }
+
+  getStats(): Stats {
+    const row = this.database.prepare(`
+      SELECT
+        COUNT(*) as total_prs,
+        SUM(CASE WHEN state = 'open' THEN 1 ELSE 0 END) as open_prs,
+        SUM(CASE WHEN review_status = 'pending' THEN 1 ELSE 0 END) as pending_reviews,
+        SUM(CASE WHEN review_status = 'reviewing' THEN 1 ELSE 0 END) as reviewing,
+        SUM(comment_count) as total_comments,
+        SUM(unresolved_count) as total_unresolved
+      FROM prs
+    `).get() as Partial<Stats>;
+
+    return {
+      total_prs: row.total_prs || 0,
+      open_prs: row.open_prs || 0,
+      pending_reviews: row.pending_reviews || 0,
+      reviewing: row.reviewing || 0,
+      total_comments: row.total_comments || 0,
+      total_unresolved: row.total_unresolved || 0,
+    };
+  }
+
+  resetOrphanedReviews(): void {
+    const resetPRs = this.database.prepare("UPDATE prs SET review_status = 'failed' WHERE review_status = 'reviewing'").run();
+    const resetRuns = this.database.prepare("UPDATE review_runs SET status = 'failed', error = 'Server restarted', completed_at = datetime('now') WHERE status = 'running'").run();
+    if (resetPRs.changes > 0 || resetRuns.changes > 0) {
+      console.log(`[db] Reset ${resetPRs.changes} orphaned PRs and ${resetRuns.changes} orphaned review runs`);
+    }
+  }
+}
+
+export function initDatabase(dbPath?: string): Storage {
+  const resolvedPath = dbPath || path.join(process.cwd(), 'data', 'raas.db');
+  const dir = path.dirname(resolvedPath);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
 
-  const db = new Database(p);
-  db.pragma('journal_mode = WAL');
-  db.pragma('foreign_keys = ON');
+  const database = new Database(resolvedPath);
+  database.pragma('journal_mode = WAL');
+  database.pragma('foreign_keys = ON');
 
-  db.exec(`
+  database.exec(`
     CREATE TABLE IF NOT EXISTS prs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       repo TEXT NOT NULL,
@@ -104,176 +324,10 @@ export function initDatabase(dbPath?: string): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_review_runs_pr_id ON review_runs(pr_id);
   `);
 
-  const reviewRunColumns = db.prepare("PRAGMA table_info(review_runs)").all() as Array<{ name: string }>;
+  const reviewRunColumns = database.prepare("PRAGMA table_info(review_runs)").all() as Array<{ name: string }>;
   if (!reviewRunColumns.some((column) => column.name === 'metadata')) {
-    db.exec('ALTER TABLE review_runs ADD COLUMN metadata TEXT');
+    database.exec('ALTER TABLE review_runs ADD COLUMN metadata TEXT');
   }
 
-  return db;
-}
-
-// --- Query helpers ---
-
-export function upsertPR(
-  db: Database.Database,
-  pr: { repo: string; number: number; title: string; author: string; head_sha: string; state: string },
-): PR {
-  const stmt = db.prepare(`
-    INSERT INTO prs (repo, number, title, author, head_sha, state)
-    VALUES (@repo, @number, @title, @author, @head_sha, @state)
-    ON CONFLICT(repo, number) DO UPDATE SET
-      title = @title,
-      author = @author,
-      head_sha = @head_sha,
-      state = @state,
-      updated_at = datetime('now')
-    RETURNING *
-  `);
-  return stmt.get(pr) as PR;
-}
-
-export function getPR(db: Database.Database, repo: string, number: number): PR | undefined {
-  return db.prepare('SELECT * FROM prs WHERE repo = ? AND number = ?').get(repo, number) as PR | undefined;
-}
-
-export function getAllPRs(db: Database.Database): PR[] {
-  return db.prepare('SELECT * FROM prs ORDER BY repo ASC, number DESC').all() as PR[];
-}
-
-export function getOpenPRs(db: Database.Database): PR[] {
-  return db.prepare("SELECT * FROM prs WHERE state = 'open' ORDER BY repo ASC, number DESC").all() as PR[];
-}
-
-export function updatePRStatus(db: Database.Database, id: number, status: string): void {
-  const now = new Date().toISOString();
-  if (status === 'reviewing') {
-    db.prepare('UPDATE prs SET review_status = ?, reviewing_since = ?, updated_at = ? WHERE id = ?')
-      .run(status, now, now, id);
-  } else if (status === 'reviewed') {
-    db.prepare('UPDATE prs SET review_status = ?, reviewing_since = NULL, last_reviewed_at = ?, updated_at = ? WHERE id = ?')
-      .run(status, now, now, id);
-  } else {
-    db.prepare('UPDATE prs SET review_status = ?, updated_at = ? WHERE id = ?')
-      .run(status, now, id);
-  }
-}
-
-export function updatePRCommentCounts(db: Database.Database, id: number, commentCount: number, unresolvedCount: number): void {
-  db.prepare("UPDATE prs SET comment_count = ?, unresolved_count = ?, last_scanned_at = datetime('now'), updated_at = datetime('now') WHERE id = ?")
-    .run(commentCount, unresolvedCount, id);
-}
-
-export function updatePRState(db: Database.Database, id: number, state: string): void {
-  db.prepare("UPDATE prs SET state = ?, updated_at = datetime('now') WHERE id = ?").run(state, id);
-}
-
-export function createReviewRun(
-  db: Database.Database,
-  prId: number,
-  type: string,
-  triggerReason: string,
-  metadata?: string,
-): number {
-  const result = db.prepare(
-    "INSERT INTO review_runs (pr_id, type, status, trigger_reason, metadata) VALUES (?, ?, 'pending', ?, ?)",
-  ).run(prId, type, triggerReason, metadata || null);
-  return Number(result.lastInsertRowid);
-}
-
-export function updateReviewRun(
-  db: Database.Database,
-  id: number,
-  updates: Partial<{ status: string; started_at: string; completed_at: string; duration_ms: number; exit_code: number; error: string }>,
-): void {
-  const sets: string[] = [];
-  const vals: (string | number)[] = [];
-  for (const [key, val] of Object.entries(updates)) {
-    if (val !== undefined) {
-      sets.push(`${key} = ?`);
-      vals.push(val);
-    }
-  }
-  if (sets.length > 0) {
-    vals.push(id);
-    db.prepare(`UPDATE review_runs SET ${sets.join(', ')} WHERE id = ?`).run(...vals);
-  }
-}
-
-export function getReviewRuns(db: Database.Database, prId: number): ReviewRun[] {
-  return db.prepare('SELECT * FROM review_runs WHERE pr_id = ? ORDER BY id DESC').all(prId) as ReviewRun[];
-}
-
-export function hasPrimaryReviewRun(db: Database.Database, prId: number): boolean {
-  const row = db.prepare(
-    "SELECT 1 as found FROM review_runs WHERE pr_id = ? AND type IN ('initial', 'recheck') LIMIT 1",
-  ).get(prId) as { found: number } | undefined;
-  return Boolean(row?.found);
-}
-
-export function getPendingReviewRuns(
-  db: Database.Database,
-): (ReviewRun & { repo: string; pr_number: number; title: string; pr_author: string; pr_head_sha: string })[] {
-  return db.prepare(`
-    SELECT r.*, p.repo, p.number as pr_number, p.title, p.author as pr_author, p.head_sha as pr_head_sha
-    FROM review_runs r
-    JOIN prs p ON r.pr_id = p.id
-    WHERE r.status = 'pending'
-    ORDER BY r.id ASC
-  `).all() as any[];
-}
-
-export function getRunningReviewCount(db: Database.Database): number {
-  const row = db.prepare("SELECT COUNT(*) as count FROM review_runs WHERE status = 'running'").get() as { count: number };
-  return row.count;
-}
-
-export function createScanLog(db: Database.Database): number {
-  const result = db.prepare("INSERT INTO scan_logs (started_at) VALUES (datetime('now'))").run();
-  return Number(result.lastInsertRowid);
-}
-
-export function completeScanLog(db: Database.Database, id: number, prsFound: number, reviewsTriggered: number, errors?: string): void {
-  db.prepare("UPDATE scan_logs SET completed_at = datetime('now'), prs_found = ?, reviews_triggered = ?, errors = ? WHERE id = ?")
-    .run(prsFound, reviewsTriggered, errors || null, id);
-}
-
-export function getRecentScanLogs(db: Database.Database, limit: number = 20): ScanLog[] {
-  return db.prepare('SELECT * FROM scan_logs ORDER BY id DESC LIMIT ?').all(limit) as ScanLog[];
-}
-
-export function getStats(db: Database.Database): {
-  total_prs: number;
-  open_prs: number;
-  pending_reviews: number;
-  reviewing: number;
-  total_comments: number;
-  total_unresolved: number;
-} {
-  const row = db.prepare(`
-    SELECT
-      COUNT(*) as total_prs,
-      SUM(CASE WHEN state = 'open' THEN 1 ELSE 0 END) as open_prs,
-      SUM(CASE WHEN review_status = 'pending' THEN 1 ELSE 0 END) as pending_reviews,
-      SUM(CASE WHEN review_status = 'reviewing' THEN 1 ELSE 0 END) as reviewing,
-      SUM(comment_count) as total_comments,
-      SUM(unresolved_count) as total_unresolved
-    FROM prs
-  `).get() as any;
-
-  return {
-    total_prs: row.total_prs || 0,
-    open_prs: row.open_prs || 0,
-    pending_reviews: row.pending_reviews || 0,
-    reviewing: row.reviewing || 0,
-    total_comments: row.total_comments || 0,
-    total_unresolved: row.total_unresolved || 0,
-  };
-}
-
-export function resetOrphanedReviews(db: Database.Database): void {
-  const resetPRs = db.prepare("UPDATE prs SET review_status = 'failed' WHERE review_status = 'reviewing'").run();
-  const resetRuns = db.prepare("UPDATE review_runs SET status = 'failed', error = 'Server restarted', completed_at = datetime('now') WHERE status = 'running'").run();
-  if (resetPRs.changes > 0 || resetRuns.changes > 0) {
-    console.log(`[db] Reset ${resetPRs.changes} orphaned PRs and ${resetRuns.changes} orphaned review runs`);
-  }
+  return new SQLiteStorage(database);
 }

@@ -1,8 +1,7 @@
 import type { Hono } from 'hono';
-import type Database from 'better-sqlite3';
 import type { Config } from './config.js';
 import type { GitHubClient } from './github.js';
-import * as db from './db.js';
+import type { PR, Storage } from './db.js';
 import { getScannerStatus, processReviewQueue } from './scanner.js';
 import { getTidbReviewGate, isTidbRepo } from './tidb-review-gate.js';
 
@@ -40,12 +39,12 @@ function parseManualPRReference(
   return null;
 }
 
-function isResolvedState(pr: db.PR): boolean {
+function isResolvedState(pr: PR): boolean {
   const resolvedComments = pr.comment_count - pr.unresolved_count;
   return pr.review_status === 'reviewed' && resolvedComments > 0 && pr.unresolved_count === 0;
 }
 
-function getManualTriggerState(database: Database.Database, pr: db.PR): { available: boolean; reason: string } {
+function getManualTriggerState(storage: Storage, pr: PR): { available: boolean; reason: string } {
   if (!isTidbRepo(pr.repo)) {
     return { available: false, reason: 'Only available for pingcap/tidb.' };
   }
@@ -61,7 +60,7 @@ function getManualTriggerState(database: Database.Database, pr: db.PR): { availa
   if (pr.review_status === 'approved') {
     return { available: false, reason: 'PR is already approved.' };
   }
-  if (!db.hasPrimaryReviewRun(database, pr.id)) {
+  if (!storage.hasPrimaryReviewRun(pr.id)) {
     return { available: false, reason: 'Initial review is triggered automatically after TiDB CI passes.' };
   }
   if (!isResolvedState(pr)) {
@@ -70,8 +69,8 @@ function getManualTriggerState(database: Database.Database, pr: db.PR): { availa
   return { available: true, reason: 'Resolved PR can trigger a recheck review after current TiDB CI passes.' };
 }
 
-function serializePR(database: Database.Database, pr: db.PR) {
-  const manualTrigger = getManualTriggerState(database, pr);
+function serializePR(storage: Storage, pr: PR) {
+  const manualTrigger = getManualTriggerState(storage, pr);
   const displayReviewStatus = isResolvedState(pr) ? 'resolved' : pr.review_status;
 
   return {
@@ -84,21 +83,21 @@ function serializePR(database: Database.Database, pr: db.PR) {
 
 export function registerDashboard(
   app: Hono,
-  database: Database.Database,
+  storage: Storage,
   config: Config,
   github: GitHubClient,
 ) {
   // JSON API
-  app.get('/api/prs', (c) => c.json(db.getAllPRs(database).map((pr) => serializePR(database, pr))));
-  app.get('/api/stats', (c) => c.json(db.getStats(database)));
+  app.get('/api/prs', (c) => c.json(storage.getAllPRs().map((pr) => serializePR(storage, pr))));
+  app.get('/api/stats', (c) => c.json(storage.getStats()));
   app.get('/api/logs', (c) => {
     const limitRaw = Number(c.req.query('limit') || RECENT_SCAN_LIMIT);
     const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(limitRaw, 100)) : RECENT_SCAN_LIMIT;
-    return c.json(db.getRecentScanLogs(database, limit));
+    return c.json(storage.getRecentScanLogs(limit));
   });
   app.get('/api/prs/:id/runs', (c) => {
     const id = Number(c.req.param('id'));
-    return c.json(db.getReviewRuns(database, id));
+    return c.json(storage.getReviewRuns(id));
   });
   app.post('/api/manual-prs', async (c) => {
     const body = await c.req.json<{ value?: string }>().catch(() => null);
@@ -131,30 +130,30 @@ export function registerDashboard(
       }, 409);
     }
 
-    const existing = db.getPR(database, parsed.repo, parsed.number);
+    const existing = storage.getPR(parsed.repo, parsed.number);
     if (existing?.review_status === 'pending') {
       return c.json({
         ok: false,
         error: 'PR review is already queued.',
-        pr: serializePR(database, existing),
+        pr: serializePR(storage, existing),
       }, 409);
     }
     if (existing?.review_status === 'reviewing') {
       return c.json({
         ok: false,
         error: 'PR review is already running.',
-        pr: serializePR(database, existing),
+        pr: serializePR(storage, existing),
       }, 409);
     }
-    if (existing && db.hasPrimaryReviewRun(database, existing.id)) {
+    if (existing && storage.hasPrimaryReviewRun(existing.id)) {
       return c.json({
         ok: false,
         error: 'PR is already tracked. Use Trigger Review if you need another run.',
-        pr: serializePR(database, existing),
+        pr: serializePR(storage, existing),
       }, 409);
     }
 
-    const tracked = db.upsertPR(database, {
+    const tracked = storage.upsertPR({
       repo: parsed.repo,
       number: parsed.number,
       title: remotePR.title,
@@ -163,39 +162,38 @@ export function registerDashboard(
       state: remotePR.state,
     });
 
-    db.updatePRStatus(database, tracked.id, 'pending');
-    const runId = db.createReviewRun(
-      database,
+    storage.updatePRStatus(tracked.id, 'pending');
+    const runId = storage.createReviewRun(
       tracked.id,
       'initial',
       `Manually added from dashboard for review (base: ${remotePR.base_branch})`,
     );
 
-    void processReviewQueue(config, database, github).catch((err) => {
+    void processReviewQueue(config, storage, github).catch((err) => {
       console.error('[dashboard] manual add queue processing failed:', err);
     });
 
-    const refreshed = db.getPR(database, parsed.repo, parsed.number);
+    const refreshed = storage.getPR(parsed.repo, parsed.number);
     return c.json({
       ok: true,
       message: `Manual review queued for ${parsed.repo}#${parsed.number}.`,
       run_id: runId,
-      pr: refreshed ? serializePR(database, refreshed) : null,
+      pr: refreshed ? serializePR(storage, refreshed) : null,
     });
   });
   app.post('/api/prs/:id/manual-trigger', async (c) => {
     const id = Number(c.req.param('id'));
-    const pr = db.getAllPRs(database).find((item) => item.id === id);
+    const pr = storage.getPRById(id);
     if (!pr) {
       return c.json({ ok: false, error: 'PR not found.' }, 404);
     }
 
-    const manualTrigger = getManualTriggerState(database, pr);
+    const manualTrigger = getManualTriggerState(storage, pr);
     if (!manualTrigger.available) {
       return c.json({
         ok: false,
         error: manualTrigger.reason,
-        pr: serializePR(database, pr),
+        pr: serializePR(storage, pr),
       }, 409);
     }
 
@@ -205,25 +203,25 @@ export function registerDashboard(
       return c.json({
         ok: false,
         error: `TiDB CI gate not ready: ${gate.reason}`,
-        pr: serializePR(database, pr),
+        pr: serializePR(storage, pr),
       }, 409);
     }
 
     const triggerReason = `Manual recheck from dashboard after TiDB CI gate passed: ${gate.reason}`;
 
-    db.updatePRStatus(database, pr.id, 'pending');
-    const runId = db.createReviewRun(database, pr.id, 'recheck', triggerReason);
+    storage.updatePRStatus(pr.id, 'pending');
+    const runId = storage.createReviewRun(pr.id, 'recheck', triggerReason);
 
-    void processReviewQueue(config, database, github).catch((err) => {
+    void processReviewQueue(config, storage, github).catch((err) => {
       console.error('[dashboard] manual trigger queue processing failed:', err);
     });
 
-    const refreshed = db.getPR(database, pr.repo, pr.number);
+    const refreshed = storage.getPR(pr.repo, pr.number);
     return c.json({
       ok: true,
       message: 'Manual review trigger queued.',
       run_id: runId,
-      pr: refreshed ? serializePR(database, refreshed) : null,
+      pr: refreshed ? serializePR(storage, refreshed) : null,
     });
   });
   app.get('/api/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }));
