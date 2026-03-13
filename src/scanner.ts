@@ -12,6 +12,8 @@ let nextScanAt: string | null = null;
 let scanIntervalSeconds: number | null = null;
 const failureCount = new Map<string, number>();  // repo#number -> consecutive failures
 const MAX_RETRIES_PER_SCAN = 3;
+const NO_GO_CHANGES_STATUS = 'no-go-changes';
+const NO_GO_CHANGES_MESSAGE = 'No .go file changes in PR';
 
 function log(msg: string, data?: Record<string, unknown>) {
   const ts = new Date().toISOString();
@@ -37,6 +39,19 @@ function parseFollowupMetadata(raw: string | null): FollowupReviewMetadata | und
   } catch {
     return undefined;
   }
+}
+
+async function hasGoChangesOrMarkSkipped(
+  storage: Storage,
+  github: GitHubClient,
+  details: { prId: number; owner: string; repo: string; repoFullName: string; number: number },
+): Promise<boolean> {
+  const hasGoChanges = await github.hasGoChanges(details.owner, details.repo, details.number);
+  if (!hasGoChanges) {
+    storage.updatePRStatus(details.prId, NO_GO_CHANGES_STATUS);
+    log(`Skipping review for ${details.repoFullName}#${details.number}: ${NO_GO_CHANGES_MESSAGE.toLowerCase()}`);
+  }
+  return hasGoChanges;
 }
 
 export async function scan(config: Config, storage: Storage, github: GitHubClient) {
@@ -124,6 +139,17 @@ export async function scan(config: Config, storage: Storage, github: GitHubClien
               head_sha: pr.head_sha,
               state: pr.state,
             });
+            const hasGoChanges = await hasGoChangesOrMarkSkipped(storage, github, {
+              prId: inserted.id,
+              owner,
+              repo,
+              repoFullName,
+              number: pr.number,
+            });
+            if (!hasGoChanges) {
+              continue;
+            }
+
             if (isTidbRepo(repoFullName)) {
               const gate = await getTidbReviewGate(github, owner, repo, pr.number);
               if (gate.state === 'ready') {
@@ -145,7 +171,7 @@ export async function scan(config: Config, storage: Storage, github: GitHubClien
             }
           } else if (existing.head_sha !== pr.head_sha) {
             // New commits pushed
-            storage.upsertPR({
+            const tracked = storage.upsertPR({
               repo: repoFullName,
               number: pr.number,
               title: pr.title,
@@ -153,6 +179,17 @@ export async function scan(config: Config, storage: Storage, github: GitHubClien
               head_sha: pr.head_sha,
               state: pr.state,
             });
+            const hasGoChanges = await hasGoChangesOrMarkSkipped(storage, github, {
+              prId: tracked.id,
+              owner,
+              repo,
+              repoFullName,
+              number: pr.number,
+            });
+            if (!hasGoChanges) {
+              continue;
+            }
+
             if (isTidbRepo(repoFullName)) {
               if (storage.hasPrimaryReviewRun(existing.id)) {
                 log(`Skipping retrigger for TiDB PR after new commits: ${repoFullName}#${pr.number}`);
@@ -178,6 +215,17 @@ export async function scan(config: Config, storage: Storage, github: GitHubClien
               log(`New commits on: ${repoFullName}#${pr.number}`);
             }
           } else if (isTidbRepo(repoFullName) && (existing.review_status === 'waiting-ci' || existing.review_status === 'ci-fetch-error')) {
+            const hasGoChanges = await hasGoChangesOrMarkSkipped(storage, github, {
+              prId: existing.id,
+              owner,
+              repo,
+              repoFullName,
+              number: pr.number,
+            });
+            if (!hasGoChanges) {
+              continue;
+            }
+
             const gate = await getTidbReviewGate(github, owner, repo, pr.number);
             if (gate.state === 'ready') {
               storage.updatePRStatus(existing.id, 'pending');
@@ -192,6 +240,17 @@ export async function scan(config: Config, storage: Storage, github: GitHubClien
               log(`TiDB PR could not fetch CI gate: ${repoFullName}#${pr.number}`, { gate: gate.reason });
             }
           } else if (existing.review_status === 'failed' || existing.review_status === 'pending') {
+            const hasGoChanges = await hasGoChangesOrMarkSkipped(storage, github, {
+              prId: existing.id,
+              owner,
+              repo,
+              repoFullName,
+              number: pr.number,
+            });
+            if (!hasGoChanges) {
+              continue;
+            }
+
             if (isTidbRepo(repoFullName) && storage.hasPrimaryReviewRun(existing.id)) {
               log(`Skipping retry for TiDB PR: ${repoFullName}#${pr.number} (one-shot review policy)`);
               continue;
@@ -305,6 +364,25 @@ export async function processReviewQueue(config: Config, storage: Storage, githu
       const [run] = storage.getPendingReviewRuns();
       if (!run) {
         break;
+      }
+
+      try {
+        const { owner, repo } = parseRepo(run.repo);
+        const hasGoChanges = await github.hasGoChanges(owner, repo, run.pr_number);
+        if (!hasGoChanges) {
+          storage.updateReviewRun(run.id, {
+            status: 'failed',
+            completed_at: new Date().toISOString(),
+            error: `Skipped: ${NO_GO_CHANGES_MESSAGE}`,
+          });
+          storage.updatePRStatus(run.pr_id, NO_GO_CHANGES_STATUS);
+          log(`Skipping queued review for ${run.repo}#${run.pr_number}: ${NO_GO_CHANGES_MESSAGE.toLowerCase()}`);
+          continue;
+        }
+      } catch (err: any) {
+        log(`Go file preflight check failed for ${run.repo}#${run.pr_number}, continuing with review`, {
+          error: err?.message || String(err),
+        });
       }
 
       activeReviews++;

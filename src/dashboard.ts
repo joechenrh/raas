@@ -6,6 +6,8 @@ import { getScannerStatus, processReviewQueue } from './scanner.js';
 import { getTidbReviewGate, isTidbRepo } from './tidb-review-gate.js';
 
 const RECENT_SCAN_LIMIT = 10;
+const NO_GO_CHANGES_STATUS = 'no-go-changes';
+const NO_GO_CHANGES_MESSAGE = 'No .go file changes in PR.';
 
 function parseRepo(fullName: string): { owner: string; repo: string } {
   const [owner, repo] = fullName.split('/');
@@ -59,6 +61,9 @@ function getManualTriggerState(storage: Storage, pr: PR): { available: boolean; 
   }
   if (pr.review_status === 'approved') {
     return { available: false, reason: 'PR is already approved.' };
+  }
+  if (pr.review_status === NO_GO_CHANGES_STATUS) {
+    return { available: false, reason: NO_GO_CHANGES_MESSAGE };
   }
   if (!storage.hasPrimaryReviewRun(pr.id)) {
     return { available: false, reason: 'Initial review is triggered automatically after TiDB CI passes.' };
@@ -130,6 +135,8 @@ export function registerDashboard(
       }, 409);
     }
 
+    const hasGoChanges = await github.hasGoChanges(owner, repo, parsed.number);
+
     const existing = storage.getPR(parsed.repo, parsed.number);
     if (existing?.review_status === 'pending') {
       return c.json({
@@ -161,6 +168,16 @@ export function registerDashboard(
       head_sha: remotePR.head_sha,
       state: remotePR.state,
     });
+
+    if (!hasGoChanges) {
+      storage.updatePRStatus(tracked.id, NO_GO_CHANGES_STATUS);
+      const refreshed = storage.getPR(parsed.repo, parsed.number);
+      return c.json({
+        ok: true,
+        message: `Tracked ${parsed.repo}#${parsed.number}, but review was not queued: ${NO_GO_CHANGES_MESSAGE}`,
+        pr: refreshed ? serializePR(storage, refreshed) : null,
+      });
+    }
 
     storage.updatePRStatus(tracked.id, 'pending');
     const runId = storage.createReviewRun(
@@ -198,6 +215,17 @@ export function registerDashboard(
     }
 
     const { owner, repo } = parseRepo(pr.repo);
+    const hasGoChanges = await github.hasGoChanges(owner, repo, pr.number);
+    if (!hasGoChanges) {
+      storage.updatePRStatus(pr.id, NO_GO_CHANGES_STATUS);
+      const refreshed = storage.getPR(pr.repo, pr.number);
+      return c.json({
+        ok: false,
+        error: NO_GO_CHANGES_MESSAGE,
+        pr: refreshed ? serializePR(storage, refreshed) : null,
+      }, 409);
+    }
+
     const gate = await getTidbReviewGate(github, owner, repo, pr.number);
     if (gate.state !== 'ready') {
       return c.json({
@@ -831,6 +859,12 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       border-color: rgba(196, 210, 242, 0.18);
     }
 
+    .pill-no-go-changes {
+      color: var(--text-secondary);
+      background: rgba(255, 255, 255, 0.06);
+      border-color: rgba(255, 255, 255, 0.08);
+    }
+
     .pill-approved,
     .pill-ok {
       color: var(--success);
@@ -1331,6 +1365,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       if (text.includes('already running')) return 'Running';
       if (text.includes('already queued')) return 'Queued';
       if (text.includes('already approved')) return 'Approved';
+      if (text.includes('no .go file changes')) return 'No Go changes';
       if (text.includes('resolved pr')) return 'Awaiting CI';
       if (text.includes('only resolved')) return 'Resolve comments first';
       if (text.includes('initial review')) return 'Auto after CI';

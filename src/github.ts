@@ -43,6 +43,11 @@ export interface PRStatusChecksResult {
   error?: string;
 }
 
+export interface GitHubPRFile {
+  filename: string;
+  previous_filename?: string;
+}
+
 function mapPullRequest(pr: any): GitHubPR {
   return {
     number: pr.number,
@@ -107,6 +112,39 @@ export class GitHubClient {
   async getPRState(owner: string, repo: string, number: number): Promise<{ state: string; merged: boolean }> {
     const { data } = await this.octokit.pulls.get({ owner, repo, pull_number: number });
     return { state: data.state, merged: data.merged };
+  }
+
+  async listPullRequestFiles(owner: string, repo: string, number: number): Promise<GitHubPRFile[]> {
+    const files: GitHubPRFile[] = [];
+
+    for (let page = 1; ; page++) {
+      const { data } = await this.octokit.pulls.listFiles({
+        owner,
+        repo,
+        pull_number: number,
+        per_page: 100,
+        page,
+      });
+
+      files.push(...data.map((file) => ({
+        filename: file.filename,
+        previous_filename: file.previous_filename,
+      })));
+
+      if (data.length < 100) {
+        break;
+      }
+    }
+
+    return files;
+  }
+
+  async hasGoChanges(owner: string, repo: string, number: number): Promise<boolean> {
+    const files = await this.listPullRequestFiles(owner, repo, number);
+    return files.some((file) => {
+      const names = [file.filename, file.previous_filename].filter((value): value is string => Boolean(value));
+      return names.some((name) => name.endsWith('.go'));
+    });
   }
 
   async getPRStatusChecks(owner: string, repo: string, number: number): Promise<PRStatusChecksResult> {
