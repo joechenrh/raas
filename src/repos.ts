@@ -5,7 +5,7 @@ import path from 'node:path';
 
 const exec = promisify(execFile);
 
-const REPOS_DIR = path.join(process.cwd(), 'repos');
+const REPOS_DIR = path.join(process.cwd(), 'outputs', 'repos');
 const SYNC_REVIEW_SKILLS_SCRIPT = path.join(process.cwd(), 'scripts', 'sync_repo_review_skills.sh');
 
 function log(msg: string) {

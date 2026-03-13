@@ -4,7 +4,7 @@ import path from 'node:path';
 import type { Config } from './config.js';
 import { prepareForReview, getRepoDir } from './repos.js';
 
-const LOGS_DIR = path.join(process.cwd(), 'logs', 'reviews');
+const LOGS_DIR = path.join(process.cwd(), 'outputs', 'logs', 'reviews');
 
 export interface ReviewResult {
   exitCode: number;

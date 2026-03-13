@@ -275,7 +275,7 @@ class SQLiteStorage implements Storage {
 }
 
 export function initDatabase(dbPath?: string): Storage {
-  const resolvedPath = dbPath || path.join(process.cwd(), 'data', 'raas.db');
+  const resolvedPath = dbPath || path.join(process.cwd(), 'outputs', 'data', 'raas.db');
   const dir = path.dirname(resolvedPath);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
