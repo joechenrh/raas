@@ -1830,11 +1830,11 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       </div>
       <div class="card lifecycle-card">
         <div class="lifecycle-diagram">
-          <svg viewBox="0 -16 800 190" xmlns="http://www.w3.org/2000/svg" class="lifecycle-svg">
+          <svg viewBox="0 -16 840 272" xmlns="http://www.w3.org/2000/svg" class="lifecycle-svg">
             <!--
-              Grid: 5 columns x 2 rows.  Orthogonal edges with r=8 rounded corners.
+              Grid: 5 columns x 3 rows.  Orthogonal edges with r=8 rounded corners.
               Col centers:  70   220   390   560   730
-              Row centers:  40   120
+              Row centers:  40   120   200
               Node: w=112 h=36 rx=10  (wide: w=120)
               Edges: top=22 bottom=58 left=cx-56 right=cx+56  (wide: cx-60/+60)
             -->
@@ -1856,6 +1856,9 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
             <g class="lc-node lc-node-danger"><rect x="160" y="102" width="120" height="36" rx="10"/><text x="220" y="120" dy="0.35em">ci-failed</text></g>
             <g class="lc-node lc-node-danger"><rect x="504" y="102" width="112" height="36" rx="10"/><text x="560" y="120" dy="0.35em">failed</text></g>
             <g class="lc-node lc-node-success"><rect x="674" y="102" width="112" height="36" rx="10"/><text x="730" y="120" dy="0.35em">resolved</text></g>
+
+            <!-- Row 2 -->
+            <g class="lc-node lc-node-success"><rect x="674" y="182" width="112" height="36" rx="10"/><text x="730" y="200" dy="0.35em">approved</text></g>
 
             <!-- === Edges === -->
 
@@ -1899,9 +1902,17 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
             <line x1="730" y1="58" x2="730" y2="98" class="lc-edge lc-edge-success" marker-end="url(#ah-g)"/>
             <text x="766" y="82" class="lc-label lc-label-dim">resolve</text>
 
-            <!-- 11. Recheck: resolved bottom → down to y=158 → left to x=384 → up → pending bottom -->
-            <path d="M 730 138 V 150 A 8 8 0 0 1 722 158 H 392 A 8 8 0 0 1 384 150 V 58" class="lc-edge lc-edge-muted" marker-end="url(#ah-m)"/>
-            <text x="557" y="170" class="lc-label lc-label-dim">recheck</text>
+            <!-- 11. Recheck: approved bottom → down to y=230 → left to x=384 → up → pending bottom -->
+            <path d="M 730 218 V 230 A 8 8 0 0 1 722 238 H 392 A 8 8 0 0 1 384 230 V 58" class="lc-edge lc-edge-muted" marker-end="url(#ah-m)"/>
+            <text x="557" y="250" class="lc-label lc-label-dim">recheck</text>
+
+            <!-- 12. resolved → approved (straight down) -->
+            <line x1="730" y1="138" x2="730" y2="178" class="lc-edge lc-edge-success" marker-end="url(#ah-g)"/>
+            <text x="758" y="162" class="lc-label lc-label-dim">label</text>
+
+            <!-- 13. reviewed → approved (right side down, orthogonal) -->
+            <path d="M 786 40 H 794 A 8 8 0 0 1 802 48 V 192 A 8 8 0 0 1 794 200 H 790" class="lc-edge lc-edge-success" marker-end="url(#ah-g)"/>
+            <text x="816" y="120" class="lc-label lc-label-dim">label</text>
           </svg>
         </div>
         <div class="lifecycle-legend">
