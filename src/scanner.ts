@@ -518,7 +518,8 @@ export async function processReviewQueue(config: Config, storage: Storage, githu
       storage.updateReviewRun(run.id, { status: 'running', started_at: startedAt });
       storage.updatePRStatus(run.pr_id, 'reviewing');
 
-      log(`Starting ${run.type} review: ${run.repo}#${run.pr_number}`);
+      const source = run.trigger_reason?.startsWith('Manual') ? 'dashboard' : 'scanner';
+      log(`Starting ${run.type} review: ${run.repo}#${run.pr_number}`, { source, trigger: run.trigger_reason ?? 'unknown' });
 
       // Dry-run mode: skip codex invocation
       if (config.debug.dry_run) {
@@ -586,7 +587,7 @@ export async function processReviewQueue(config: Config, storage: Storage, githu
           failureCount.set(key, (failureCount.get(key) || 0) + 1);
         }
 
-        log(`Review ${status}: ${run.repo}#${run.pr_number} (${result.durationMs}ms, exit ${result.exitCode})`);
+        log(`Review ${status}: ${run.repo}#${run.pr_number} (${result.durationMs}ms, exit ${result.exitCode})`, { source, trigger: run.trigger_reason ?? 'unknown' });
         log(`Log file: ${result.logFile}`);
       } catch (err: any) {
         storage.updateReviewRun(run.id, {

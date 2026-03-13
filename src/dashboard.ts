@@ -186,6 +186,8 @@ export function registerDashboard(
       `Manually added from dashboard for review (base: ${remotePR.base_branch})`,
     );
 
+    console.log(`[dashboard] Manual add: ${parsed.repo}#${parsed.number} queued for initial review (run ${runId})`);
+
     void processReviewQueue(config, storage, github).catch((err) => {
       console.error('[dashboard] manual add queue processing failed:', err);
     });
@@ -239,6 +241,8 @@ export function registerDashboard(
 
     storage.updatePRStatus(pr.id, 'pending');
     const runId = storage.createReviewRun(pr.id, 'recheck', triggerReason);
+
+    console.log(`[dashboard] Manual trigger: ${pr.repo}#${pr.number} queued for recheck review (run ${runId})`);
 
     void processReviewQueue(config, storage, github).catch((err) => {
       console.error('[dashboard] manual trigger queue processing failed:', err);
@@ -302,6 +306,8 @@ export function registerDashboard(
 
     storage.updatePRStatus(pr.id, 'pending');
     const runId = storage.createReviewRun(pr.id, 'ci-triage', 'Manual CI triage from dashboard');
+
+    console.log(`[dashboard] CI triage: ${pr.repo}#${pr.number} queued for ci-triage (run ${runId})`);
 
     void processReviewQueue(config, storage, github).catch((err) => {
       console.error('[dashboard] ci-triage queue processing failed:', err);
@@ -1643,7 +1649,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       <div class="nav-meta" id="config-info" aria-label="Configuration"></div>
       <div class="nav-status" id="live-status" role="status" aria-live="polite">
         <span class="nav-dot" aria-hidden="true"></span>
-        <span id="live-status-label">Live monitoring</span>
+        <span id="live-status-label">Watching</span>
         <span class="nav-next-scan" id="next-scan-label">No schedule</span>
       </div>
     </div>
@@ -1654,12 +1660,12 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       <div>
         <p class="eyebrow">Review Operations</p>
         <h1 class="masthead-title">Pull request review queue</h1>
-        <p class="masthead-summary" id="dashboard-summary">Monitoring tracked pull requests and review activity.</p>
+        <p class="masthead-summary" id="dashboard-summary">Keeping an eye on your pull requests and review activity.</p>
       </div>
       <div class="status-card">
         <div>
           <div class="status-card-label">Automation</div>
-          <div class="status-card-value" id="status-card-summary">Waiting for the first sync.</div>
+          <div class="status-card-value" id="status-card-summary">Getting ready\u2026</div>
         </div>
         <div class="status-card-meta">
           <div class="status-chip">
@@ -1690,7 +1696,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
             Pull Requests
             <span class="section-count" id="pr-count">0</span>
           </div>
-          <div class="section-subtitle" id="pr-summary">Tracked pull requests and their current review state.</div>
+          <div class="section-subtitle" id="pr-summary">Your pull requests and where they stand.</div>
         </div>
         <div class="section-tools">
           <form class="manual-add-form" id="manual-add-form" role="search" aria-label="Add pull request">
@@ -1798,7 +1804,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
               Recent Scans
               <span class="section-count">${RECENT_SCAN_LIMIT}</span>
             </div>
-            <div class="section-subtitle">Latest scan activity and review handoffs.</div>
+            <div class="section-subtitle">What the scanner picked up and handed off.</div>
           </div>
           <svg class="section-toggle-chevron" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M6.22 3.22a.75.75 0 011.06 0l4.25 4.25a.75.75 0 010 1.06l-4.25 4.25a.75.75 0 01-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 010-1.06z" fill="currentColor"/></svg>
         </summary>
@@ -1825,7 +1831,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
             <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path fill-rule="evenodd" d="M1.5 8a6.5 6.5 0 1113 0 6.5 6.5 0 01-13 0zM8 0a8 8 0 100 16A8 8 0 008 0zm.5 4.75a.75.75 0 00-1.5 0v3.5a.75.75 0 00.37.65l2.5 1.5a.75.75 0 10.76-1.3L8.5 7.94V4.75z"/></svg>
             Review Lifecycle
           </div>
-          <div class="section-subtitle">How a pull request moves through the review pipeline.</div>
+          <div class="section-subtitle">The journey of a pull request, from open to approved.</div>
         </div>
       </div>
       <div class="card lifecycle-card">
@@ -1916,15 +1922,15 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
           </svg>
         </div>
         <div class="lifecycle-legend">
-          <div class="lifecycle-legend-item"><span class="pill pill-waiting-ci"><span class="pill-dot"></span>waiting-ci</span>CI checks still running</div>
-          <div class="lifecycle-legend-item"><span class="pill pill-ci-failed"><span class="pill-dot"></span>ci-failed</span>CI failed, use Triage CI</div>
-          <div class="lifecycle-legend-item"><span class="pill pill-pending"><span class="pill-dot"></span>pending</span>Review queued</div>
-          <div class="lifecycle-legend-item"><span class="pill pill-reviewing"><span class="pill-dot"></span>reviewing</span>Codex running</div>
-          <div class="lifecycle-legend-item"><span class="pill pill-reviewed"><span class="pill-dot"></span>reviewed</span>Has open comments</div>
-          <div class="lifecycle-legend-item"><span class="pill pill-resolved"><span class="pill-dot"></span>resolved</span>All comments resolved</div>
-          <div class="lifecycle-legend-item"><span class="pill pill-failed"><span class="pill-dot"></span>failed</span>Run errored, will retry</div>
-          <div class="lifecycle-legend-item"><span class="pill pill-approved"><span class="pill-dot"></span>approved</span>Has approved label</div>
-          <div class="lifecycle-legend-item"><span class="pill pill-no-go-changes"><span class="pill-dot"></span>no-go-changes</span>No .go files, skipped</div>
+          <div class="lifecycle-legend-item"><span class="pill pill-waiting-ci"><span class="pill-dot"></span>waiting-ci</span>CI is still running</div>
+          <div class="lifecycle-legend-item"><span class="pill pill-ci-failed"><span class="pill-dot"></span>ci-failed</span>CI didn\u2019t pass. Triage it</div>
+          <div class="lifecycle-legend-item"><span class="pill pill-pending"><span class="pill-dot"></span>pending</span>In line for review</div>
+          <div class="lifecycle-legend-item"><span class="pill pill-reviewing"><span class="pill-dot"></span>reviewing</span>Reviewer is thinking</div>
+          <div class="lifecycle-legend-item"><span class="pill pill-reviewed"><span class="pill-dot"></span>reviewed</span>Comments left to address</div>
+          <div class="lifecycle-legend-item"><span class="pill pill-resolved"><span class="pill-dot"></span>resolved</span>Every thread wrapped up</div>
+          <div class="lifecycle-legend-item"><span class="pill pill-failed"><span class="pill-dot"></span>failed</span>Hit an error. Retrying</div>
+          <div class="lifecycle-legend-item"><span class="pill pill-approved"><span class="pill-dot"></span>approved</span>Good to go</div>
+          <div class="lifecycle-legend-item"><span class="pill pill-no-go-changes"><span class="pill-dot"></span>no-go-changes</span>No Go files to review</div>
         </div>
 
         <details class="triage-example" open>
@@ -2047,35 +2053,35 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       if (stats.total_unresolved > 0) {
         return {
           tone: 'danger',
-          eyebrow: 'Needs attention',
+          eyebrow: 'Needs your attention',
           value: stats.total_unresolved,
-          label: 'Unresolved comments',
+          label: stats.total_unresolved === 1 ? 'open conversation' : 'open conversations',
           detail: queue > 0
-            ? 'Open conversations are holding the queue open while ' + formatCount(queue, 'review') + ' stays in motion.'
-            : 'Open conversations are blocking a calm queue.'
+            ? formatCount(queue, 'review') + ' moving forward, but unresolved threads need a look.'
+            : 'The queue is clear \u2014 these conversations are the last thing standing.'
         };
       }
 
       if (queue > 0) {
         return {
           tone: 'active',
-          eyebrow: 'In progress',
+          eyebrow: 'Actively reviewing',
           value: queue,
-          label: 'Reviews in motion',
+          label: queue === 1 ? 'review in flight' : 'reviews in flight',
           detail: stats.open_prs > 0
-            ? formatCount(stats.open_prs, 'open pull request') + ' are under watch while the queue keeps moving.'
-            : 'The service is moving review work forward without open drift.'
+            ? formatCount(stats.open_prs, 'pull request') + ' under watch. Everything\u2019s moving.'
+            : 'No open PRs drifting \u2014 the queue is focused.'
         };
       }
 
       return {
         tone: 'calm',
-        eyebrow: 'Steady state',
+        eyebrow: 'All quiet',
         value: stats.open_prs,
-        label: stats.open_prs === 1 ? 'Open pull request' : 'Open pull requests',
+        label: stats.open_prs === 1 ? 'open pull request' : 'open pull requests',
         detail: stats.total_prs > 0
-          ? formatCount(stats.total_prs, 'tracked pull request') + ' are visible and nothing urgent is pressing on the queue.'
-          : 'Nothing is waiting for review right now.'
+          ? formatCount(stats.total_prs, 'pull request') + ' tracked. Nothing pressing \u2014 enjoy the calm.'
+          : 'No reviews in the queue. The calm before the code.'
       };
     }
 
@@ -2117,27 +2123,27 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       const queue = stats.pending_reviews + stats.reviewing;
       const needsAttention = prs.filter((pr) => pr.unresolved_count > 0).length;
       const nextScan = status?.next_scan_at ? 'next scan ' + formatClockTime(status.next_scan_at) : 'no scan scheduled';
-      let summary = 'No pull requests are being tracked right now; the scanner is waiting for the next review cycle.';
+      let summary = 'Nothing on the radar yet. The scanner is listening for new pull requests.';
 
       if (prs.length) {
         if (needsAttention > 0) {
-          summary = formatCount(prs.length, 'tracked pull request') + ' are in view, and ' +
-            formatCount(needsAttention, 'thread') + ' still need closure before the queue can settle.';
+          summary = formatCount(prs.length, 'pull request') + ' in view. ' +
+            formatCount(needsAttention, 'conversation') + ' waiting to be resolved.';
         } else if (queue > 0) {
-          summary = formatCount(prs.length, 'tracked pull request') + ' are in view, and the queue is moving with ' +
-            formatCount(queue, 'active review') + '. ' + nextScan + '.';
+          summary = formatCount(prs.length, 'pull request') + ' in view, ' +
+            formatCount(queue, 'review') + ' actively running. ' + nextScan + '.';
         } else {
-          summary = formatCount(prs.length, 'tracked pull request') + ' are in view, and the queue feels clear for now.';
+          summary = formatCount(prs.length, 'pull request') + ' in view. Queue is clear \u2014 nothing needs action right now.';
         }
       }
 
       const statusCardSummary = needsAttention > 0
-        ? 'Open threads are holding the queue open.'
+        ? 'Unresolved threads need your attention.'
         : queue > 0
-          ? 'Reviews are in motion and the queue is moving.'
+          ? 'Reviews are running. Everything\u2019s on track.'
           : prs.length
-            ? 'The queue is calm and nothing urgent is waiting.'
-            : 'Waiting for the next review cycle.';
+            ? 'All quiet. Nothing urgent.'
+            : 'Listening for new pull requests.';
 
       document.getElementById('dashboard-summary').textContent = summary;
       document.getElementById('status-card-summary').textContent = statusCardSummary;
@@ -2145,17 +2151,17 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
 
     function manualActionLabel(reason) {
       const text = String(reason || '').toLowerCase();
-      if (!text) return 'Unavailable';
-      if (text.includes('already running')) return 'Running';
-      if (text.includes('already queued')) return 'Queued';
-      if (text.includes('already approved')) return 'Approved';
-      if (text.includes('no .go file changes')) return 'No Go changes';
-      if (text.includes('resolved pr')) return 'Awaiting CI';
-      if (text.includes('only resolved')) return 'Resolve comments first';
-      if (text.includes('initial review')) return 'Auto after CI';
-      if (text.includes('only available')) return 'TiDB only';
-      if (text.includes('pr is')) return 'Unavailable';
-      return 'Unavailable';
+      if (!text) return 'Not available';
+      if (text.includes('already running')) return 'Review in progress';
+      if (text.includes('already queued')) return 'Already in line';
+      if (text.includes('already approved')) return 'All clear';
+      if (text.includes('no .go file changes')) return 'No Go to review';
+      if (text.includes('only resolved')) return 'Open threads remain';
+      if (text.includes('resolved pr')) return 'Waiting on CI';
+      if (text.includes('initial review')) return 'Starts after CI';
+      if (text.includes('only available')) return 'TiDB repos only';
+      if (text.includes('pr is')) return 'Not available';
+      return 'Not available';
     }
 
     function renderPRs(prs) {
@@ -2170,17 +2176,17 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       const activeReviews = activePRs.filter((pr) => pr.review_status === 'pending' || pr.review_status === 'reviewing').length;
       summary.textContent = activePRs.length
         ? unresolvedPRs > 0
-          ? formatCount(unresolvedPRs, 'open conversation') + ' are keeping this queue from going quiet.'
+          ? formatCount(unresolvedPRs, 'unresolved thread') + ' still open.'
           : activeReviews > 0
-            ? formatCount(activeReviews, 'review') + ' are in flight and the queue is moving cleanly.'
-            : 'No open conversations are pushing on the queue right now.'
-        : 'No pull requests are being tracked yet.';
+            ? formatCount(activeReviews, 'review') + ' in progress. Moving smoothly.'
+            : 'All conversations resolved. Queue is at ease.'
+        : 'No active pull requests yet.';
 
       if (!activePRs.length) {
         document.getElementById('pr-body').innerHTML =
           '<tr><td colspan="9"><div class="empty">' +
           '<svg viewBox="0 0 16 16"><path fill-rule="evenodd" d="M11.5 7a4.499 4.499 0 11-8.998 0A4.499 4.499 0 0111.5 7zm-.82 4.74a6 6 0 111.06-1.06l3.04 3.04a.75.75 0 11-1.06 1.06l-3.04-3.04z"/></svg>' +
-          '<div>No active pull requests in the review queue.</div></div></td></tr>';
+          '<div>Nothing in the queue yet. Add a PR above to get started.</div></div></td></tr>';
       } else {
         let html = '';
         for (const pr of activePRs) {
@@ -2249,8 +2255,8 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       mergedPRsCache = mergedPRs;
       document.getElementById('merged-count').textContent = mergedPRs.length;
       document.getElementById('merged-summary').textContent = mergedPRs.length
-        ? formatCount(mergedPRs.length, 'merged pull request') + ' from the review history.'
-        : 'No merged pull requests yet.';
+        ? formatCount(mergedPRs.length, 'pull request') + ' shipped and done.'
+        : 'Nothing merged yet. It\u2019ll show up here when it does.';
 
       if (mergedPage * MERGED_PAGE_SIZE >= mergedPRs.length && mergedPage > 0) {
         mergedPage = Math.max(0, Math.ceil(mergedPRs.length / MERGED_PAGE_SIZE) - 1);
@@ -2267,7 +2273,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
 
       if (!prs.length) {
         document.getElementById('merged-body').innerHTML =
-          '<tr><td colspan="7"><div class="empty" style="padding:40px 32px">No merged pull requests.</div></td></tr>';
+          '<tr><td colspan="7"><div class="empty" style="padding:40px 32px">No merged PRs yet. They\u2019ll land here after shipping.</div></td></tr>';
         document.getElementById('merged-pagination').innerHTML = '';
         return;
       }
@@ -2336,7 +2342,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       const status = document.getElementById('live-status');
       const label = document.getElementById('live-status-label');
       status.classList.toggle('is-error', !isHealthy);
-      label.textContent = isHealthy ? 'Live monitoring' : 'Refresh failed';
+      label.textContent = isHealthy ? 'Watching' : 'Connection lost';
     }
 
     function setLastUpdated(value) {
@@ -2390,7 +2396,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       const id = btn.dataset.id;
       btn.disabled = true;
       const original = btn.textContent;
-      btn.textContent = 'Queueing...';
+      btn.textContent = 'On it\u2026';
 
       try {
         const res = await fetch('/api/prs/' + id + '/manual-trigger', { method: 'POST' });
@@ -2416,7 +2422,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       const id = btn.dataset.id;
       btn.disabled = true;
       const original = btn.textContent;
-      btn.textContent = 'Queueing...';
+      btn.textContent = 'On it\u2026';
 
       try {
         const res = await fetch('/api/prs/' + id + '/ci-triage', { method: 'POST' });
@@ -2476,7 +2482,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       input.disabled = true;
       btn.disabled = true;
       const original = btn.textContent;
-      btn.textContent = 'Adding...';
+      btn.textContent = 'Adding\u2026';
 
       try {
         const res = await fetch('/api/manual-prs', {
@@ -2543,7 +2549,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       } catch (error) {
         console.error('Refresh failed', error);
         setLiveStatus(false);
-        document.getElementById('status-card-summary').textContent = 'Connection interrupted. Retrying automatically.';
+        document.getElementById('status-card-summary').textContent = 'Lost connection. Trying to reconnect\u2026';
       }
 
       scheduleRefresh();
