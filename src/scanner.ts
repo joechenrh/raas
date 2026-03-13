@@ -14,7 +14,7 @@ const failureCount = new Map<string, number>();  // repo#number -> consecutive f
 const MAX_RETRIES_PER_SCAN = 3;
 const NO_GO_CHANGES_STATUS = 'no-go-changes';
 const NO_GO_CHANGES_MESSAGE = 'No .go file changes in PR';
-type ReviewRunType = 'initial' | 'followup' | 'recheck';
+type ReviewRunType = 'initial' | 'followup' | 'recheck' | 'ci-triage';
 
 interface ScanPRContext {
   owner: string;
@@ -126,6 +126,7 @@ function shouldTrackPR(
 }
 
 async function getTidbGateDecision(
+  storage: Storage,
   github: GitHubClient,
   context: ScanPRContext,
   options: {
@@ -142,6 +143,14 @@ async function getTidbGateDecision(
       reviewType: 'initial',
       triggerReason: options.readyTriggerReason.replace('{reason}', gate.reason),
       message: options.readyMessage,
+      data: { gate: gate.reason },
+    };
+  }
+  if (gate.state === 'ci-failed') {
+    return {
+      kind: 'set-status',
+      status: 'ci-failed',
+      message: `CI checks failed for TiDB PR: ${context.repoFullName}#${context.pr.number}`,
       data: { gate: gate.reason },
     };
   }
@@ -162,6 +171,7 @@ async function getTidbGateDecision(
 }
 
 async function determineNewPRDecision(
+  storage: Storage,
   github: GitHubClient,
   context: ScanPRContext,
 ): Promise<ReviewDecision> {
@@ -179,7 +189,7 @@ async function determineNewPRDecision(
     };
   }
 
-  return getTidbGateDecision(github, context, {
+  return getTidbGateDecision(storage, github, context, {
     readyTriggerReason: 'TiDB CI gate passed: {reason}',
     readyMessage: `New TiDB PR ready for review: ${context.repoFullName}#${context.pr.number}`,
     waitingMessage: `New TiDB PR waiting for CI gate: ${context.repoFullName}#${context.pr.number}`,
@@ -216,7 +226,7 @@ async function determineUpdatedPRDecision(
     };
   }
 
-  return getTidbGateDecision(github, context, {
+  return getTidbGateDecision(storage, github, context, {
     readyTriggerReason: 'TiDB CI gate passed after new commits: {reason}',
     readyMessage: `TiDB PR passed CI gate after new commits: ${context.repoFullName}#${context.pr.number}`,
     waitingMessage: `TiDB PR still waiting for CI gate after new commits: ${context.repoFullName}#${context.pr.number}`,
@@ -225,6 +235,7 @@ async function determineUpdatedPRDecision(
 }
 
 async function determineTidbWaitingDecision(
+  storage: Storage,
   github: GitHubClient,
   context: ScanPRContext,
 ): Promise<ReviewDecision> {
@@ -233,7 +244,7 @@ async function determineTidbWaitingDecision(
     return goChangeDecision;
   }
 
-  return getTidbGateDecision(github, context, {
+  return getTidbGateDecision(storage, github, context, {
     readyTriggerReason: 'TiDB CI gate passed: {reason}',
     readyMessage: `TiDB PR passed CI gate: ${context.repoFullName}#${context.pr.number}`,
     waitingMessage: `TiDB PR still waiting for CI gate: ${context.repoFullName}#${context.pr.number}`,
@@ -322,7 +333,7 @@ async function determineReviewDecision(
   errors: string[],
 ): Promise<ReviewDecision> {
   if (!context.existing) {
-    return determineNewPRDecision(github, context);
+    return determineNewPRDecision(storage, github, context);
   }
 
   if (context.existing.head_sha !== context.pr.head_sha) {
@@ -330,8 +341,8 @@ async function determineReviewDecision(
   }
 
   if (isTidbRepo(context.repoFullName)
-    && (context.existing.review_status === 'waiting-ci' || context.existing.review_status === 'ci-fetch-error')) {
-    return determineTidbWaitingDecision(github, context);
+    && (context.existing.review_status === 'waiting-ci' || context.existing.review_status === 'ci-fetch-error' || context.existing.review_status === 'ci-failed')) {
+    return determineTidbWaitingDecision(storage, github, context);
   }
 
   if (context.existing.review_status === 'failed' || context.existing.review_status === 'pending') {
@@ -526,7 +537,7 @@ export async function processReviewQueue(config: Config, storage: Storage, githu
       // Run review synchronously — block scan until review completes
       try {
         const followupMetadata = run.type === 'followup' ? parseFollowupMetadata(run.metadata) : undefined;
-        const result = await runCodexReview(config, run.type as 'initial' | 'followup' | 'recheck', {
+        const result = await runCodexReview(config, run.type as 'initial' | 'followup' | 'recheck' | 'ci-triage', {
           repo: run.repo,
           number: run.pr_number,
           title: run.title,
@@ -552,7 +563,12 @@ export async function processReviewQueue(config: Config, storage: Storage, githu
             ? `${failureDetail ? `${failureDetail}. ` : ''}See log: ${path.basename(result.logFile)}`
             : undefined,
         });
-        storage.updatePRStatus(run.pr_id, status === 'completed' ? 'reviewed' : 'failed');
+        if (run.type === 'ci-triage') {
+          // After triage, set status back to ci-failed so the gate keeps polling for CI recovery
+          storage.updatePRStatus(run.pr_id, status === 'completed' ? 'ci-failed' : 'failed');
+        } else {
+          storage.updatePRStatus(run.pr_id, status === 'completed' ? 'reviewed' : 'failed');
+        }
 
         // Sync comment counts after review completes
         try {

@@ -252,6 +252,70 @@ export function registerDashboard(
       pr: refreshed ? serializePR(storage, refreshed) : null,
     });
   });
+  // CI failure details endpoint — fetches failing checks live from GitHub
+  app.get('/api/prs/:id/ci-failures', async (c) => {
+    const id = Number(c.req.param('id'));
+    const pr = storage.getPRById(id);
+    if (!pr) {
+      return c.json({ ok: false, error: 'PR not found.' }, 404);
+    }
+
+    const { owner, repo } = parseRepo(pr.repo);
+    const statusResult = await github.getPRStatusChecks(owner, repo, pr.number);
+    if (!statusResult.ok) {
+      return c.json({ ok: false, error: statusResult.error || 'Failed to fetch CI checks.' }, 502);
+    }
+
+    const FAILED_STATES = new Set(['FAILURE', 'ERROR', 'CANCELLED', 'TIMED_OUT', 'ACTION_REQUIRED']);
+    const failures = statusResult.checks.filter((check) => FAILED_STATES.has(check.state));
+    return c.json({
+      ok: true,
+      head_sha: pr.head_sha,
+      failures: failures.map((check) => ({
+        name: check.name,
+        state: check.state,
+        details_url: check.detailsUrl,
+      })),
+    });
+  });
+
+  // Manual CI triage trigger — queues a ci-triage codex run
+  app.post('/api/prs/:id/ci-triage', async (c) => {
+    const id = Number(c.req.param('id'));
+    const pr = storage.getPRById(id);
+    if (!pr) {
+      return c.json({ ok: false, error: 'PR not found.' }, 404);
+    }
+
+    if (pr.state !== 'open') {
+      return c.json({ ok: false, error: `PR is ${pr.state}.` }, 409);
+    }
+
+    if (pr.review_status !== 'ci-failed') {
+      return c.json({ ok: false, error: `PR is not in ci-failed state (current: ${pr.review_status}).` }, 409);
+    }
+
+    // Throttle: one triage per SHA
+    if (storage.hasTriageRunForSha(pr.id, pr.head_sha)) {
+      return c.json({ ok: false, error: 'Triage already run for this SHA.' }, 409);
+    }
+
+    storage.updatePRStatus(pr.id, 'pending');
+    const runId = storage.createReviewRun(pr.id, 'ci-triage', 'Manual CI triage from dashboard');
+
+    void processReviewQueue(config, storage, github).catch((err) => {
+      console.error('[dashboard] ci-triage queue processing failed:', err);
+    });
+
+    const refreshed = storage.getPR(pr.repo, pr.number);
+    return c.json({
+      ok: true,
+      message: `CI triage queued for ${pr.repo}#${pr.number}.`,
+      run_id: runId,
+      pr: refreshed ? serializePR(storage, refreshed) : null,
+    });
+  });
+
   app.get('/api/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }));
   app.get('/api/status', (c) => c.json(getScannerStatus()));
   app.get('/api/config', (c) => c.json({
@@ -879,10 +943,54 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     }
 
     .pill-failed,
-    .pill-ci-fetch-error {
+    .pill-ci-fetch-error,
+    .pill-ci-failed {
       color: var(--danger);
       background: rgba(255, 152, 152, 0.12);
       border-color: rgba(255, 152, 152, 0.2);
+    }
+
+    .ci-failures-row td {
+      padding: 0 !important;
+    }
+
+    .ci-failures-wrap {
+      padding: 16px 24px 16px 52px;
+      background: rgba(255, 152, 152, 0.04);
+      border-top: 1px solid rgba(255, 152, 152, 0.1);
+    }
+
+    .ci-failures-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--danger);
+      margin-bottom: 10px;
+    }
+
+    .ci-failure-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 0;
+      font-size: 12px;
+    }
+
+    .ci-failure-item a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .ci-failure-item a:hover {
+      text-decoration: underline;
+    }
+
+    .ci-failure-state {
+      color: var(--danger);
+      font-weight: 600;
+      font-size: 11px;
+      min-width: 60px;
     }
 
     .comment-group {
@@ -936,6 +1044,18 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     .btn-primary:hover {
       border-color: rgba(155, 184, 255, 0.34);
       background: rgba(155, 184, 255, 0.18);
+      color: #fff;
+    }
+
+    .btn-danger {
+      border-color: rgba(255, 152, 152, 0.26);
+      background: rgba(255, 152, 152, 0.14);
+      color: var(--danger);
+    }
+
+    .btn-danger:hover {
+      border-color: rgba(255, 152, 152, 0.34);
+      background: rgba(255, 152, 152, 0.18);
       color: #fff;
     }
 
@@ -1401,11 +1521,18 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       for (const pr of prs) {
         const resolved = pr.comment_count - pr.unresolved_count;
         const manualTitle = esc(pr.manual_trigger_reason || '');
-        const manualAction = pr.repo === 'pingcap/tidb'
-          ? pr.manual_trigger_available
-            ? '<button class="btn btn-primary manual-trigger-btn" data-id="' + pr.id + '">Trigger Review</button>'
-            : '<span class="action-note" title="' + manualTitle + '">' + esc(manualActionLabel(pr.manual_trigger_reason)) + '</span>'
-          : '<span class="action-note">TiDB only</span>';
+        let manualAction;
+        if (pr.repo === 'pingcap/tidb') {
+          if (pr.review_status === 'ci-failed') {
+            manualAction = '<button class="btn btn-danger ci-triage-btn" data-id="' + pr.id + '">Triage CI</button>';
+          } else if (pr.manual_trigger_available) {
+            manualAction = '<button class="btn btn-primary manual-trigger-btn" data-id="' + pr.id + '">Trigger Review</button>';
+          } else {
+            manualAction = '<span class="action-note" title="' + manualTitle + '">' + esc(manualActionLabel(pr.manual_trigger_reason)) + '</span>';
+          }
+        } else {
+          manualAction = '<span class="action-note">TiDB only</span>';
+        }
 
         html +=
           '<tr>' +
@@ -1425,10 +1552,20 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
             '<td><span class="time">' + timeAgo(pr.last_reviewed_at) + '</span></td>' +
             '<td class="action-col"><div class="actions-cell">' + manualAction + '</div></td>' +
           '</tr>' +
-          '<tr class="runs-row hidden" id="runs-' + pr.id + '"><td colspan="9"><div class="runs-wrap"><div class="runs-label">Review Runs</div><div class="runs-list">Loading...</div></div></td></tr>';
+          '<tr class="runs-row hidden" id="runs-' + pr.id + '"><td colspan="9"><div class="runs-wrap"><div class="runs-label">Review Runs</div><div class="runs-list">Loading...</div></div></td></tr>' +
+          (pr.review_status === 'ci-failed'
+            ? '<tr class="ci-failures-row" id="ci-failures-' + pr.id + '"><td colspan="9"><div class="ci-failures-wrap"><div class="ci-failures-label">Failing CI Checks</div><div class="ci-failures-list">Loading...</div></div></td></tr>'
+            : '');
       }
 
       document.getElementById('pr-body').innerHTML = html;
+
+      // Auto-load CI failure details for ci-failed PRs
+      for (const pr of prs) {
+        if (pr.review_status === 'ci-failed') {
+          loadCIFailures(pr.id);
+        }
+      }
     }
 
     function renderScans(logs) {
@@ -1536,6 +1673,59 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
         btn.disabled = false;
       }
     });
+
+    // CI triage button handler
+    document.addEventListener('click', async (event) => {
+      const btn = event.target.closest('.ci-triage-btn');
+      if (!btn || btn.disabled) return;
+
+      const id = btn.dataset.id;
+      btn.disabled = true;
+      const original = btn.textContent;
+      btn.textContent = 'Queueing...';
+
+      try {
+        const res = await fetch('/api/prs/' + id + '/ci-triage', { method: 'POST' });
+        const payload = await res.json();
+        if (!res.ok || !payload.ok) {
+          throw new Error(payload.error || 'CI triage trigger failed.');
+        }
+        showToast(payload.message || 'CI triage queued.');
+        refreshNow();
+      } catch (err) {
+        showToast(err.message || 'CI triage trigger failed.', true);
+      } finally {
+        btn.textContent = original;
+        btn.disabled = false;
+      }
+    });
+
+    // Auto-load CI failure details for ci-failed PRs
+    async function loadCIFailures(prId) {
+      const row = document.getElementById('ci-failures-' + prId);
+      if (!row) return;
+      const list = row.querySelector('.ci-failures-list');
+
+      try {
+        const data = await fetch('/api/prs/' + prId + '/ci-failures').then((res) => res.json());
+        if (!data.ok || !data.failures.length) {
+          list.innerHTML = '<div class="time">No failing checks found.</div>';
+          return;
+        }
+
+        list.innerHTML = data.failures.map((f) =>
+          '<div class="ci-failure-item">' +
+            '<span class="ci-failure-state">' + esc(f.state) + '</span>' +
+            '<span>' + esc(f.name) + '</span>' +
+            (f.details_url
+              ? '<a href="' + esc(f.details_url) + '" target="_blank" rel="noreferrer noopener">View Log</a>'
+              : '') +
+          '</div>'
+        ).join('');
+      } catch {
+        list.innerHTML = '<div class="run-err">Failed to load CI failures.</div>';
+      }
+    }
 
     document.getElementById('manual-add-form').addEventListener('submit', async (event) => {
       event.preventDefault();

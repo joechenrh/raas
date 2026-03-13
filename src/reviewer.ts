@@ -108,7 +108,7 @@ function extractExecutionSummary(logFilePath: string): { executionStatus?: strin
 
 export async function runCodexReview(
   config: Config,
-  type: 'initial' | 'followup' | 'recheck',
+  type: 'initial' | 'followup' | 'recheck' | 'ci-triage',
   vars: {
     repo: string;
     number: number;
@@ -117,7 +117,14 @@ export async function runCodexReview(
     followupMetadata?: FollowupReviewMetadata;
   },
 ): Promise<ReviewResult> {
-  const template = type === 'initial' || type === 'recheck' ? config.reviewer.review_prompt : config.reviewer.followup_prompt;
+  let template: string;
+  if (type === 'ci-triage') {
+    template = config.reviewer.triage_prompt;
+  } else if (type === 'followup') {
+    template = config.reviewer.followup_prompt;
+  } else {
+    template = config.reviewer.review_prompt;
+  }
 
   // Prepare local repo: fetch & checkout the PR branch
   let projectPath: string;
@@ -142,7 +149,7 @@ export async function runCodexReview(
     reviewer_login: followupMetadata.botUser,
     followup_targets_json: JSON.stringify(followupMetadata.targets, null, 2),
   });
-  if (type === 'initial' || type === 'recheck') {
+  if (type === 'initial' || type === 'recheck' || type === 'ci-triage') {
     prompt = hardenInitialReviewPrompt(prompt);
   }
   const codexCwd = type === 'followup' ? projectPath : appRoot;
@@ -188,9 +195,10 @@ export async function runCodexReview(
   return new Promise((resolve) => {
     const logStream = fs.createWriteStream(logFilePath, { flags: 'a' });
 
+    const githubToken = type === 'ci-triage' ? config.github.triage_token : config.github.token;
     const child = spawn(config.reviewer.command, args, {
       cwd: codexCwd,
-      env: { ...process.env, GITHUB_TOKEN: config.github.token },
+      env: { ...process.env, GITHUB_TOKEN: githubToken },
       stdio: ['ignore', 'pipe', 'pipe'],
       timeout: config.reviewer.timeout_seconds * 1000,
     });

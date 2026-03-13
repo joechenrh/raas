@@ -10,6 +10,7 @@
 - review-output-format: Render review findings into the required JSON payload format. (file: /mnt/data/joechenrh/raas/ai-engineer/skills/review-output-format/SKILL.md)
 - merge-review-json-and-submit-pr-review: Merge category review JSON files and submit one GitHub PR review. (file: /mnt/data/joechenrh/raas/ai-engineer/skills/merge-review-json-and-submit-pr-review/SKILL.md)
 - cleanup-pr-diff-worktree: Remove the temporary PR worktree after review. (file: /mnt/data/joechenrh/raas/ai-engineer/skills/cleanup-pr-diff-worktree/SKILL.md)
+- dont-retest: Triage TiDB PR CI failures — collect failing checks, classify root cause, post structured report as PR comment. Report-only, no automated actions. (file: /mnt/data/joechenrh/raas/ai-engineer/skills/dont-retest/SKILL.md)
 
 ### How to use skills
 - If a prompt names one of the skills above, invoke that skill directly instead of recreating its workflow manually.

@@ -14,6 +14,7 @@ export interface Config {
   };
   github: {
     token: string;
+    triage_token: string;
   };
   monitor: {
     users: string[];
@@ -29,6 +30,7 @@ export interface Config {
     timeout_seconds: number;
     review_prompt: string;
     followup_prompt: string;
+    triage_prompt: string;
   };
   debug: {
     enabled: boolean;
@@ -66,6 +68,17 @@ Requirements:
 4. Return the orchestration status JSON after the skill finishes.
 5. If the review finds nothing actionable, still submit one comment-only review summary and never approve.
 6. When using child \`codex exec\` reviewers, keep the child working directory at this repository root so \`AGENTS.md\` and skill files remain visible; grant \`project_path\` or the prepared worktree via additional writable scope instead of switching child cwd there.`;
+
+const DEFAULT_TRIAGE_PROMPT = `Invoke skill \`dont-retest\` directly.
+
+Inputs:
+- \`pr_link={pr_link}\`
+
+Requirements:
+1. Follow the repository-local \`AGENTS.md\` skill registration.
+2. Generate a CI failure triage report only — do not take automated actions (no retest, no issue filing).
+3. Post the triage report as a PR comment on {pr_link}.
+4. Return a JSON status summary after the skill finishes.`;
 
 const DEFAULT_FOLLOWUP_PROMPT = `You are following up on your code review for PR #{number} in repository {repo}.
 
@@ -131,6 +144,7 @@ export function loadConfig(configPath?: string): Config {
     },
     github: {
       token,
+      triage_token: process.env.GITHUB_TRIAGE_TOKEN || parsed.github?.triage_token || token,
     },
     monitor: {
       users: normalizeStringList(parsed.monitor?.users, 'monitor.users'),
@@ -146,6 +160,7 @@ export function loadConfig(configPath?: string): Config {
       timeout_seconds: parsed.reviewer?.timeout_seconds || 600,
       review_prompt: parsed.reviewer?.review_prompt || DEFAULT_REVIEW_PROMPT,
       followup_prompt: parsed.reviewer?.followup_prompt || DEFAULT_FOLLOWUP_PROMPT,
+      triage_prompt: parsed.reviewer?.triage_prompt || DEFAULT_TRIAGE_PROMPT,
     },
     debug: {
       enabled: parsed.debug?.enabled ?? false,

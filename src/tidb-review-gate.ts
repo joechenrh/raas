@@ -11,6 +11,7 @@ const TIDB_UNIT_TEST_CHECKS = [
 export type TidbReviewGateResult =
   | { state: 'ready'; reason: string }
   | { state: 'waiting-ci'; reason: string }
+  | { state: 'ci-failed'; reason: string }
   | { state: 'ci-fetch-error'; reason: string };
 
 export function isTidbRepo(fullName: string): boolean {
@@ -19,6 +20,12 @@ export function isTidbRepo(fullName: string): boolean {
 
 function isSuccessState(state: string | undefined): boolean {
   return (state || '').toUpperCase() === 'SUCCESS';
+}
+
+const FAILED_STATES = new Set(['FAILURE', 'ERROR', 'CANCELLED', 'TIMED_OUT', 'ACTION_REQUIRED']);
+
+function isFailedState(state: string | undefined): boolean {
+  return FAILED_STATES.has((state || '').toUpperCase());
 }
 
 function getCheckState(checks: PRStatusCheck[], name: string): string {
@@ -47,8 +54,22 @@ export async function getTidbReviewGate(
 
   const buildState = getCheckState(checks, TIDB_BUILD_CHECK);
   const checkDevState = getCheckState(checks, TIDB_CHECK_DEV_CHECK);
+  const unitCheckStates = TIDB_UNIT_TEST_CHECKS.map((name) => getCheckState(checks, name));
   const unitStates = TIDB_UNIT_TEST_CHECKS.map((name) => `${name}=${getCheckState(checks, name)}`);
   const unitSucceeded = TIDB_UNIT_TEST_CHECKS.some((name) => isSuccessState(getCheckState(checks, name)));
+
+  // Detect explicit failures (not just "not yet succeeded")
+  if (isFailedState(buildState)) {
+    return { state: 'ci-failed', reason: `${TIDB_BUILD_CHECK}=${buildState}` };
+  }
+  if (isFailedState(checkDevState)) {
+    return { state: 'ci-failed', reason: `${TIDB_CHECK_DEV_CHECK}=${checkDevState}` };
+  }
+  const allUnitsFailed = unitCheckStates.length > 0
+    && unitCheckStates.every((s) => isFailedState(s));
+  if (allUnitsFailed) {
+    return { state: 'ci-failed', reason: `all unit tests failed (${unitStates.join(', ')})` };
+  }
 
   if (!isSuccessState(buildState)) {
     return { state: 'waiting-ci', reason: `${TIDB_BUILD_CHECK}=${buildState}` };

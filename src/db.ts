@@ -92,6 +92,7 @@ export interface Storage {
   updateReviewRun(id: number, updates: ReviewRunUpdate): void;
   getReviewRuns(prId: number): ReviewRun[];
   hasPrimaryReviewRun(prId: number): boolean;
+  hasTriageRunForSha(prId: number, headSha: string): boolean;
   getPendingReviewRuns(): PendingReviewRun[];
   getRunningReviewCount(): number;
   createScanLog(): number;
@@ -203,6 +204,16 @@ class SQLiteStorage implements Storage {
     return Boolean(row?.found);
   }
 
+  hasTriageRunForSha(prId: number, headSha: string): boolean {
+    const row = this.database.prepare(
+      `SELECT 1 as found FROM review_runs r
+       JOIN prs p ON r.pr_id = p.id
+       WHERE r.pr_id = ? AND r.type = 'ci-triage' AND p.head_sha = ?
+       LIMIT 1`,
+    ).get(prId, headSha) as { found: number } | undefined;
+    return Boolean(row?.found);
+  }
+
   getPendingReviewRuns(): PendingReviewRun[] {
     return this.database.prepare(`
       SELECT r.*, p.repo, p.number as pr_number, p.title, p.author as pr_author, p.head_sha as pr_head_sha
@@ -297,7 +308,7 @@ export function initDatabase(dbPath?: string): Storage {
     CREATE TABLE IF NOT EXISTS review_runs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       pr_id INTEGER NOT NULL,
-      type TEXT NOT NULL CHECK(type IN ('initial', 'followup', 'recheck')),
+      type TEXT NOT NULL CHECK(type IN ('initial', 'followup', 'recheck', 'ci-triage')),
       status TEXT NOT NULL CHECK(status IN ('pending', 'running', 'completed', 'failed')),
       trigger_reason TEXT,
       metadata TEXT,
@@ -327,6 +338,34 @@ export function initDatabase(dbPath?: string): Storage {
   const reviewRunColumns = database.prepare("PRAGMA table_info(review_runs)").all() as Array<{ name: string }>;
   if (!reviewRunColumns.some((column) => column.name === 'metadata')) {
     database.exec('ALTER TABLE review_runs ADD COLUMN metadata TEXT');
+  }
+
+  // Migrate CHECK constraint to allow 'ci-triage' type (SQLite requires recreate)
+  try {
+    database.exec("INSERT INTO review_runs (pr_id, type, status, trigger_reason) VALUES (0, 'ci-triage', 'pending', 'migration-test')");
+    database.exec("DELETE FROM review_runs WHERE pr_id = 0 AND trigger_reason = 'migration-test'");
+  } catch {
+    // CHECK constraint rejects ci-triage — recreate the table with updated constraint
+    database.exec(`
+      CREATE TABLE review_runs_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        pr_id INTEGER NOT NULL,
+        type TEXT NOT NULL CHECK(type IN ('initial', 'followup', 'recheck', 'ci-triage')),
+        status TEXT NOT NULL CHECK(status IN ('pending', 'running', 'completed', 'failed')),
+        trigger_reason TEXT,
+        metadata TEXT,
+        started_at TEXT,
+        completed_at TEXT,
+        duration_ms INTEGER,
+        exit_code INTEGER,
+        error TEXT,
+        FOREIGN KEY (pr_id) REFERENCES prs(id)
+      );
+      INSERT INTO review_runs_new SELECT * FROM review_runs;
+      DROP TABLE review_runs;
+      ALTER TABLE review_runs_new RENAME TO review_runs;
+      CREATE INDEX IF NOT EXISTS idx_review_runs_pr_id ON review_runs(pr_id);
+    `);
   }
 
   return new SQLiteStorage(database);
