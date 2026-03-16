@@ -28,35 +28,12 @@
 
   <div class="page">
     <section class="masthead">
-      <div>
-        <p class="eyebrow">Review Operations</p>
-        <h1 class="masthead-title">Pull request review queue</h1>
-        <p class="masthead-summary" id="dashboard-summary">Keeping an eye on your pull requests and review activity.</p>
-      </div>
-      <div class="status-card">
-        <div>
-          <div class="status-card-label">Automation</div>
-          <div class="status-card-value" id="status-card-summary">Getting ready…</div>
-        </div>
-        <div class="status-card-meta">
-          <div class="status-chip">
-            <span class="status-chip-label">Last updated</span>
-            <strong id="last-updated-label">Waiting</strong>
-          </div>
-          <div class="status-chip">
-            <span class="status-chip-label">Next scan</span>
-            <strong id="next-scan-card-label">No schedule</strong>
-          </div>
-        </div>
-      </div>
+      <p class="eyebrow">Review Operations</p>
+      <h1 class="masthead-title">Pull request review queue</h1>
+      <p class="masthead-summary" id="dashboard-summary">Keeping an eye on your pull requests and review activity.</p>
     </section>
 
-    <section class="stats" id="stats-row" role="region" aria-label="Review statistics">
-      <div class="skeleton skeleton-stat-primary" id="skel-stat-1"></div>
-      <div class="skeleton skeleton-stat-secondary" id="skel-stat-2"></div>
-      <div class="skeleton skeleton-stat-secondary" id="skel-stat-3"></div>
-      <div class="skeleton skeleton-stat-secondary" id="skel-stat-4"></div>
-      <div class="skeleton skeleton-stat-secondary" id="skel-stat-5"></div>
+    <section class="stats-bar" id="stats-row" role="region" aria-label="Review statistics">
     </section>
 
     <section class="section">
@@ -92,7 +69,6 @@
             <col style="width:130px">
             <col class="title-col" style="width:320px">
             <col style="width:120px">
-            <col style="width:92px">
             <col style="width:110px">
             <col style="width:150px">
             <col style="width:110px">
@@ -104,7 +80,6 @@
               <th scope="col">PR</th>
               <th scope="col">Title</th>
               <th scope="col">Author</th>
-              <th scope="col">State</th>
               <th scope="col">Review</th>
               <th scope="col">Comments</th>
               <th scope="col">Last Review</th>
@@ -112,7 +87,7 @@
             </tr>
           </thead>
           <tbody id="pr-body" aria-live="polite">
-            <tr><td colspan="9">
+            <tr><td colspan="8">
               <div style="padding: 20px 16px; display: flex; flex-direction: column; gap: 6px;">
                 <div class="skeleton skeleton-row" id="skel-pr-1"></div>
                 <div class="skeleton skeleton-row" id="skel-pr-2"></div>

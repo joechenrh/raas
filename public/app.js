@@ -27,86 +27,25 @@ function formatClockTime(value) {
   return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 }
 
-function formatDateTime(value) {
-  const d = value instanceof Date ? value : new Date(value);
-  if (isNaN(d)) return 'Unavailable';
-  return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-}
-
 function formatCount(value, noun) {
   return value + ' ' + noun + (value === 1 ? '' : 's');
 }
 
-function getHeadlineState(stats) {
-  const queue = stats.pending_reviews + stats.reviewing;
-
-  if (stats.total_unresolved > 0) {
-    return {
-      tone: 'danger',
-      eyebrow: 'Needs your attention',
-      value: stats.total_unresolved,
-      label: stats.total_unresolved === 1 ? 'open conversation' : 'open conversations',
-      detail: queue > 0
-        ? formatCount(queue, 'review') + ' moving forward, but unresolved threads need a look.'
-        : 'The queue is clear \u2014 these conversations are the last thing standing.'
-    };
-  }
-
-  if (queue > 0) {
-    return {
-      tone: 'active',
-      eyebrow: 'Actively reviewing',
-      value: queue,
-      label: queue === 1 ? 'review in flight' : 'reviews in flight',
-      detail: stats.open_prs > 0
-        ? formatCount(stats.open_prs, 'pull request') + ' under watch. Everything\u2019s moving.'
-        : 'No open PRs drifting \u2014 the queue is focused.'
-    };
-  }
-
-  return {
-    tone: 'calm',
-    eyebrow: 'All quiet',
-    value: stats.open_prs,
-    label: stats.open_prs === 1 ? 'open pull request' : 'open pull requests',
-    detail: stats.total_prs > 0
-      ? formatCount(stats.total_prs, 'pull request') + ' tracked. Nothing pressing \u2014 enjoy the calm.'
-      : 'No reviews in the queue. The calm before the code.'
-  };
-}
-
 function renderStats(stats) {
   const queue = stats.pending_reviews + stats.reviewing;
-  const headline = getHeadlineState(stats);
-  const secondary = [
+  const items = [
     { label: 'Review queue', value: queue },
-    { label: 'Tracked PRs', value: stats.total_prs },
     { label: 'Open PRs', value: stats.open_prs },
+    { label: 'Unresolved', value: stats.total_unresolved, danger: stats.total_unresolved > 0 },
     { label: 'Comments', value: stats.total_comments },
   ];
 
-  const primaryCard =
-    '<div class="stat stat-primary tone-' + headline.tone + '">' +
-      '<div>' +
-        '<div class="eyebrow">' + headline.eyebrow + '</div>' +
-        '<div class="stat-primary-row">' +
-          '<div>' +
-            '<div class="stat-primary-value">' + headline.value + '</div>' +
-            '<div class="stat-primary-label">' + headline.label + '</div>' +
-          '</div>' +
-        '</div>' +
-      '</div>' +
-      '<div class="stat-primary-detail">' + headline.detail + '</div>' +
-    '</div>';
-
-  const secondaryCards = secondary.map((item) =>
-    '<div class="stat stat-secondary">' +
-      '<div class="stat-secondary-label">' + item.label + '</div>' +
-      '<div class="stat-secondary-value">' + item.value + '</div>' +
+  document.getElementById('stats-row').innerHTML = items.map((item) =>
+    '<div class="stat-item">' +
+      '<div class="stat-value"' + (item.danger ? ' style="color:var(--danger)"' : '') + '>' + item.value + '</div>' +
+      '<div class="stat-label">' + item.label + '</div>' +
     '</div>'
   ).join('');
-
-  document.getElementById('stats-row').innerHTML = primaryCard + secondaryCards;
 }
 
 function renderDashboardSummary(stats, prs, status) {
@@ -127,16 +66,7 @@ function renderDashboardSummary(stats, prs, status) {
     }
   }
 
-  const statusCardSummary = needsAttention > 0
-    ? 'Unresolved threads need your attention.'
-    : queue > 0
-      ? 'Reviews are running. Everything\u2019s on track.'
-      : prs.length
-        ? 'All quiet. Nothing urgent.'
-        : 'Listening for new pull requests.';
-
   document.getElementById('dashboard-summary').textContent = summary;
-  document.getElementById('status-card-summary').textContent = statusCardSummary;
 }
 
 function manualActionLabel(reason) {
@@ -174,7 +104,7 @@ function renderPRs(prs) {
 
   if (!activePRs.length) {
     document.getElementById('pr-body').innerHTML =
-      '<tr><td colspan="9"><div class="empty">' +
+      '<tr><td colspan="8"><div class="empty">' +
       '<svg viewBox="0 0 16 16"><path fill-rule="evenodd" d="M11.5 7a4.499 4.499 0 11-8.998 0A4.499 4.499 0 0111.5 7zm-.82 4.74a6 6 0 111.06-1.06l3.04 3.04a.75.75 0 11-1.06 1.06l-3.04-3.04z"/></svg>' +
       '<div>Nothing in the queue yet. Add a PR above to get started.</div></div></td></tr>';
   } else {
@@ -196,7 +126,7 @@ function renderPRs(prs) {
 
 function renderPRRow(pr, showAction) {
   const resolved = pr.comment_count - pr.unresolved_count;
-  const cols = showAction ? 9 : 7;
+  const cols = showAction ? 8 : 7;
   let manualAction = '';
 
   if (showAction) {
@@ -222,7 +152,6 @@ function renderPRRow(pr, showAction) {
         '<a class="pr-link" href="https://github.com/' + esc(pr.repo) + '/pull/' + pr.number + '" target="_blank" rel="noreferrer noopener">#' + pr.number + '</a></td>' +
       '<td><div class="pr-title" title="' + esc(pr.title) + '">' + esc(pr.title) + '</div></td>' +
       '<td><span class="pr-author"><img class="avatar" src="https://github.com/' + esc(pr.author) + '.png?size=40" alt=""><span>' + esc(pr.author) + '</span></span></td>' +
-      (showAction ? '<td><span class="pill pill-' + pr.state + '"><span class="pill-dot"></span>' + esc(pr.state) + '</span></td>' : '') +
       '<td>' + (pr.review_status === 'ci-failed'
         ? '<span class="pill pill-ci-failed ci-failures-tip"><span class="pill-dot"></span>ci-failed<div class="ci-failures-tooltip"><div class="ci-failures-tooltip-title">Failing CI Checks</div><div class="ci-failures-list" id="ci-tip-' + pr.id + '">' + (ciFailuresHtmlCache[pr.id] || 'Loading...') + '</div></div></span>'
         : '<span class="pill pill-' + pr.review_status + '"><span class="pill-dot"></span>' + esc(pr.review_status) + '</span>') + '</td>' +
@@ -322,12 +251,10 @@ function renderScans(logs) {
 
 function renderStatus(status) {
   const nextScanLabel = document.getElementById('next-scan-label');
-  const nextScanCardLabel = document.getElementById('next-scan-card-label');
   const nextScanText = status?.next_scan_at ? 'Next scan ' + formatClockTime(status.next_scan_at) : 'No schedule';
 
   nextScanLabel.textContent = nextScanText;
   nextScanLabel.title = status?.next_scan_at || '';
-  nextScanCardLabel.textContent = status?.next_scan_at ? formatClockTime(status.next_scan_at) : 'No schedule';
 }
 
 function setLiveStatus(isHealthy) {
@@ -335,10 +262,6 @@ function setLiveStatus(isHealthy) {
   const label = document.getElementById('live-status-label');
   status.classList.toggle('is-error', !isHealthy);
   label.textContent = isHealthy ? 'Watching' : 'Connection lost';
-}
-
-function setLastUpdated(value) {
-  document.getElementById('last-updated-label').textContent = formatDateTime(value);
 }
 
 async function loadRuns(prId) {
@@ -559,12 +482,10 @@ async function refresh() {
     renderScans(logs);
     renderStatus(status);
     setLiveStatus(true);
-    setLastUpdated(new Date());
     isFirstLoad = false;
   } catch (error) {
     console.error('Refresh failed', error);
     setLiveStatus(false);
-    document.getElementById('status-card-summary').textContent = 'Lost connection. Trying to reconnect\u2026';
   }
 
   scheduleRefresh();
