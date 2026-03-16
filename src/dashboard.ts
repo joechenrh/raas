@@ -295,8 +295,8 @@ export function registerDashboard(
       return c.json({ ok: false, error: `PR is ${pr.state}.` }, 409);
     }
 
-    if (pr.review_status !== 'ci-failed') {
-      return c.json({ ok: false, error: `PR is not in ci-failed state (current: ${pr.review_status}).` }, 409);
+    if (pr.review_status !== 'approved') {
+      return c.json({ ok: false, error: `PR is not in approved state (current: ${pr.review_status}).` }, 409);
     }
 
     // Throttle: one triage per SHA
@@ -1013,23 +1013,37 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       border-color: rgba(255, 152, 152, 0.2);
     }
 
-    .ci-failures-row td {
-      padding: 0 !important;
+    .ci-failures-tip {
+      position: relative;
+      cursor: default;
     }
 
-    .ci-failures-wrap {
-      padding: 16px 24px 16px 52px;
-      background: rgba(255, 152, 152, 0.04);
-      border-top: 1px solid rgba(255, 152, 152, 0.1);
+    .ci-failures-tooltip {
+      display: none;
+      position: fixed;
+      z-index: 9999;
+      min-width: 320px;
+      max-width: 480px;
+      padding: 12px 16px;
+      background: #1c222b;
+      border: 1px solid rgba(255, 152, 152, 0.25);
+      border-radius: 10px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      font-size: 12px;
+      white-space: normal;
     }
 
-    .ci-failures-label {
+    .ci-failures-tooltip.is-visible {
+      display: block;
+    }
+
+    .ci-failures-tooltip-title {
       font-size: 11px;
       font-weight: 700;
       letter-spacing: 0.04em;
       text-transform: uppercase;
       color: var(--danger);
-      margin-bottom: 10px;
+      margin-bottom: 8px;
     }
 
     .ci-failure-item {
@@ -1753,7 +1767,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       </div>
     </section>
 
-    <section class="section">
+    <section class="section" id="merged-section-wrap" hidden>
       <details class="section-details" id="merged-section">
         <summary class="section-head section-head-toggle" aria-label="Toggle merged pull requests">
           <div class="section-copy">
@@ -2212,7 +2226,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       if (showAction) {
         const manualTitle = esc(pr.manual_trigger_reason || '');
         if (pr.repo === 'pingcap/tidb') {
-          if (pr.review_status === 'ci-failed') {
+          if (pr.review_status === 'approved') {
             manualAction = '<button class="btn btn-danger ci-triage-btn" data-id="' + pr.id + '">Triage CI</button>';
           } else if (pr.manual_trigger_available) {
             manualAction = '<button class="btn btn-primary manual-trigger-btn" data-id="' + pr.id + '">Trigger Review</button>';
@@ -2233,7 +2247,9 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
           '<td><div class="pr-title" title="' + esc(pr.title) + '">' + esc(pr.title) + '</div></td>' +
           '<td><span class="pr-author"><img class="avatar" src="https://github.com/' + esc(pr.author) + '.png?size=40" alt=""><span>' + esc(pr.author) + '</span></span></td>' +
           (showAction ? '<td><span class="pill pill-' + pr.state + '"><span class="pill-dot"></span>' + esc(pr.state) + '</span></td>' : '') +
-          '<td><span class="pill pill-' + pr.review_status + '"><span class="pill-dot"></span>' + esc(pr.review_status) + '</span></td>' +
+          '<td>' + (pr.review_status === 'ci-failed'
+            ? '<span class="pill pill-ci-failed ci-failures-tip"><span class="pill-dot"></span>ci-failed<div class="ci-failures-tooltip"><div class="ci-failures-tooltip-title">Failing CI Checks</div><div class="ci-failures-list" id="ci-tip-' + pr.id + '">' + (ciFailuresHtmlCache[pr.id] || 'Loading...') + '</div></div></span>'
+            : '<span class="pill pill-' + pr.review_status + '"><span class="pill-dot"></span>' + esc(pr.review_status) + '</span>') + '</td>' +
           '<td><div class="comment-group">' +
             '<span class="comment-resolved">' + resolved + ' resolved</span>' +
             '<span class="comment-open">' + pr.unresolved_count + ' open</span>' +
@@ -2241,11 +2257,10 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
           '<td><span class="time">' + timeAgo(pr.last_reviewed_at) + '</span></td>' +
           (showAction ? '<td class="action-col"><div class="actions-cell">' + manualAction + '</div></td>' : '') +
         '</tr>' +
-        '<tr class="runs-row hidden" id="runs-' + pr.id + '"><td colspan="' + cols + '"><div class="runs-wrap"><div class="runs-label">Review Runs</div><div class="runs-list">Loading...</div></div></td></tr>' +
-        (pr.review_status === 'ci-failed'
-          ? '<tr class="ci-failures-row" id="ci-failures-' + pr.id + '"><td colspan="' + cols + '"><div class="ci-failures-wrap"><div class="ci-failures-label">Failing CI Checks</div><div class="ci-failures-list">Loading...</div></div></td></tr>'
-          : '');
+        '<tr class="runs-row hidden" id="runs-' + pr.id + '"><td colspan="' + cols + '"><div class="runs-wrap"><div class="runs-label">Review Runs</div><div class="runs-list">Loading...</div></div></td></tr>';
     }
+
+    const ciFailuresHtmlCache = {};
 
     const MERGED_PAGE_SIZE = 10;
     let mergedPage = 0;
@@ -2253,6 +2268,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
 
     function renderMergedPRs(mergedPRs) {
       mergedPRsCache = mergedPRs;
+      document.getElementById('merged-section-wrap').hidden = true;
       document.getElementById('merged-count').textContent = mergedPRs.length;
       document.getElementById('merged-summary').textContent = mergedPRs.length
         ? formatCount(mergedPRs.length, 'pull request') + ' shipped and done.'
@@ -2442,18 +2458,19 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
 
     // Auto-load CI failure details for ci-failed PRs
     async function loadCIFailures(prId) {
-      const row = document.getElementById('ci-failures-' + prId);
-      if (!row) return;
-      const list = row.querySelector('.ci-failures-list');
+      const list = document.getElementById('ci-tip-' + prId);
+      if (!list) return;
 
       try {
         const data = await fetch('/api/prs/' + prId + '/ci-failures').then((res) => res.json());
         if (!data.ok || !data.failures.length) {
-          list.innerHTML = '<div class="time">No failing checks found.</div>';
+          const html = '<div class="time">No failing checks found.</div>';
+          ciFailuresHtmlCache[prId] = html;
+          list.innerHTML = html;
           return;
         }
 
-        list.innerHTML = data.failures.map((f) =>
+        const html = data.failures.map((f) =>
           '<div class="ci-failure-item">' +
             '<span class="ci-failure-state">' + esc(f.state) + '</span>' +
             '<span>' + esc(f.name) + '</span>' +
@@ -2462,10 +2479,32 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
               : '') +
           '</div>'
         ).join('');
+        ciFailuresHtmlCache[prId] = html;
+        list.innerHTML = html;
       } catch {
         list.innerHTML = '<div class="run-err">Failed to load CI failures.</div>';
       }
     }
+
+    // Position ci-failures tooltip on hover via event delegation
+    document.addEventListener('mouseenter', (e) => {
+      const tip = e.target.closest('.ci-failures-tip');
+      if (!tip) return;
+      const tooltip = tip.querySelector('.ci-failures-tooltip');
+      if (!tooltip) return;
+      const rect = tip.getBoundingClientRect();
+      tooltip.style.left = rect.left + rect.width / 2 + 'px';
+      tooltip.style.transform = 'translateX(-50%)';
+      tooltip.style.bottom = (window.innerHeight - rect.top + 6) + 'px';
+      tooltip.classList.add('is-visible');
+    }, true);
+
+    document.addEventListener('mouseleave', (e) => {
+      const tip = e.target.closest('.ci-failures-tip');
+      if (!tip) return;
+      const tooltip = tip.querySelector('.ci-failures-tooltip');
+      if (tooltip) tooltip.classList.remove('is-visible');
+    }, true);
 
     document.getElementById('manual-add-form').addEventListener('submit', async (event) => {
       event.preventDefault();
