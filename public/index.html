@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RaaS - Review as a Service</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <a class="sr-only" href="#pr-body">Skip to pull requests</a>
+  <nav class="navbar" role="navigation" aria-label="Main navigation">
+    <div class="nav-left">
+      <div class="nav-logo" aria-hidden="true">R</div>
+      <div class="nav-title">
+        <strong>RaaS</strong>
+        <span>Review Operations</span>
+      </div>
+    </div>
+    <div class="nav-right">
+      <div class="nav-meta" id="config-info" aria-label="Configuration"></div>
+      <div class="nav-status" id="live-status" role="status" aria-live="polite">
+        <span class="nav-dot" aria-hidden="true"></span>
+        <span id="live-status-label">Watching</span>
+        <span class="nav-next-scan" id="next-scan-label">No schedule</span>
+      </div>
+    </div>
+  </nav>
+
+  <div class="page">
+    <section class="masthead">
+      <div>
+        <p class="eyebrow">Review Operations</p>
+        <h1 class="masthead-title">Pull request review queue</h1>
+        <p class="masthead-summary" id="dashboard-summary">Keeping an eye on your pull requests and review activity.</p>
+      </div>
+      <div class="status-card">
+        <div>
+          <div class="status-card-label">Automation</div>
+          <div class="status-card-value" id="status-card-summary">Getting ready…</div>
+        </div>
+        <div class="status-card-meta">
+          <div class="status-chip">
+            <span class="status-chip-label">Last updated</span>
+            <strong id="last-updated-label">Waiting</strong>
+          </div>
+          <div class="status-chip">
+            <span class="status-chip-label">Next scan</span>
+            <strong id="next-scan-card-label">No schedule</strong>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="stats" id="stats-row" role="region" aria-label="Review statistics">
+      <div class="skeleton skeleton-stat-primary" id="skel-stat-1"></div>
+      <div class="skeleton skeleton-stat-secondary" id="skel-stat-2"></div>
+      <div class="skeleton skeleton-stat-secondary" id="skel-stat-3"></div>
+      <div class="skeleton skeleton-stat-secondary" id="skel-stat-4"></div>
+      <div class="skeleton skeleton-stat-secondary" id="skel-stat-5"></div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <div class="section-copy">
+          <div class="section-name">
+            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 3.25a2.25 2.25 0 113 2.122v5.256a2.251 2.251 0 11-1.5 0V5.372A2.25 2.25 0 011.5 3.25zm5.677-.177L9.573.677A.25.25 0 0110 .854V2.5h1A2.5 2.5 0 0113.5 5v5.628a2.251 2.251 0 11-1.5 0V5a1 1 0 00-1-1h-1v1.646a.25.25 0 01-.427.177L7.177 3.427a.25.25 0 010-.354zM3.75 2.5a.75.75 0 100 1.5.75.75 0 000-1.5zm0 9.5a.75.75 0 100 1.5.75.75 0 000-1.5zm8.25.75a.75.75 0 10-1.5 0 .75.75 0 001.5 0z"/></svg>
+            Pull Requests
+            <span class="section-count" id="pr-count">0</span>
+          </div>
+          <div class="section-subtitle" id="pr-summary">Your pull requests and where they stand.</div>
+        </div>
+        <div class="section-tools">
+          <form class="manual-add-form" id="manual-add-form" role="search" aria-label="Add pull request">
+            <label for="manual-add-input" class="sr-only">Pull request number or URL</label>
+            <input
+              id="manual-add-input"
+              class="manual-add-input"
+              type="text"
+              placeholder="#66738 / pingcap/tidb#66738 / GitHub PR URL"
+              autocomplete="off"
+              aria-describedby="manual-add-hint"
+            >
+            <span id="manual-add-hint" class="sr-only">Enter a PR number, repo#number, or GitHub PR URL</span>
+            <button class="btn btn-primary" id="manual-add-btn" type="submit">Add to Queue</button>
+          </form>
+        </div>
+      </div>
+      <div class="card" role="region" aria-label="Pull request list">
+        <table aria-label="Pull requests">
+          <colgroup>
+            <col style="width:36px">
+            <col style="width:130px">
+            <col class="title-col" style="width:320px">
+            <col style="width:120px">
+            <col style="width:92px">
+            <col style="width:110px">
+            <col style="width:150px">
+            <col style="width:110px">
+            <col style="width:150px">
+          </colgroup>
+          <thead>
+            <tr>
+              <th scope="col"><span class="sr-only">Expand</span></th>
+              <th scope="col">PR</th>
+              <th scope="col">Title</th>
+              <th scope="col">Author</th>
+              <th scope="col">State</th>
+              <th scope="col">Review</th>
+              <th scope="col">Comments</th>
+              <th scope="col">Last Review</th>
+              <th scope="col" class="action-col">Action</th>
+            </tr>
+          </thead>
+          <tbody id="pr-body" aria-live="polite">
+            <tr><td colspan="9">
+              <div style="padding: 20px 16px; display: flex; flex-direction: column; gap: 6px;">
+                <div class="skeleton skeleton-row" id="skel-pr-1"></div>
+                <div class="skeleton skeleton-row" id="skel-pr-2"></div>
+                <div class="skeleton skeleton-row" id="skel-pr-3"></div>
+              </div>
+            </td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section" id="merged-section-wrap" hidden>
+      <details class="section-details" id="merged-section">
+        <summary class="section-head section-head-toggle" aria-label="Toggle merged pull requests">
+          <div class="section-copy">
+            <div class="section-name">
+              <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path fill-rule="evenodd" d="M5 3.254V3.25a.75.75 0 01.005-.025l.001-.004.003-.012a.749.749 0 01.022-.065c.04-.1.122-.24.283-.388.222-.203.55-.356 1.036-.356.486 0 .814.153 1.036.356a.749.749 0 01.288.39l.005.025v.004A.75.75 0 018.25 4h.5a.75.75 0 010 1.5h-.073a2.188 2.188 0 01-1.327.496c-.473 0-.89-.178-1.2-.424L5.193 8l.957 2.428c.31-.246.727-.428 1.2-.428.473 0 .89.182 1.2.428l.957-2.428L8.55 5.572A.75.75 0 018.25 5.5h.5A.75.75 0 019 4.75v-.5A2.25 2.25 0 006.35 2.005a2.25 2.25 0 00-3.7 0A2.25 2.25 0 000 4.25v.5a.75.75 0 00.75.75h.5a.75.75 0 00.75-.75v-.002l.001-.004.003-.012a.749.749 0 01.305-.453c.222-.203.55-.356 1.036-.356.377 0 .66.1.873.237L5 3.254zm0 9.496v-.004a.749.749 0 00-.305-.453c-.222-.203-.55-.356-1.036-.356-.486 0-.814.153-1.036.356a.749.749 0 00-.305.453l-.001.004v.002a.75.75 0 01-.75.75h-.5A.75.75 0 010 12.75v-.5a2.25 2.25 0 012.65-2.245 2.25 2.25 0 013.7 0A2.25 2.25 0 019 12.25v.5a.75.75 0 01-.75.75h-.5a.75.75 0 01-.75-.75v-.002l-.001-.004a.749.749 0 00-.305-.453c-.222-.203-.55-.356-1.036-.356-.377 0-.66.1-.873.237L5 12.75z" fill="currentColor"/></svg>
+              Merged
+              <span class="section-count" id="merged-count">0</span>
+            </div>
+            <div class="section-subtitle" id="merged-summary">Previously merged pull requests.</div>
+          </div>
+          <svg class="section-toggle-chevron" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M6.22 3.22a.75.75 0 011.06 0l4.25 4.25a.75.75 0 010 1.06l-4.25 4.25a.75.75 0 01-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 010-1.06z" fill="currentColor"/></svg>
+        </summary>
+        <div class="card card-secondary" role="region" aria-label="Merged pull requests">
+          <table aria-label="Merged pull requests">
+            <colgroup>
+              <col style="width:36px">
+              <col style="width:130px">
+              <col class="title-col" style="width:320px">
+              <col style="width:120px">
+              <col style="width:110px">
+              <col style="width:150px">
+              <col style="width:110px">
+            </colgroup>
+            <thead>
+              <tr>
+                <th scope="col"><span class="sr-only">Expand</span></th>
+                <th scope="col">PR</th>
+                <th scope="col">Title</th>
+                <th scope="col">Author</th>
+                <th scope="col">Review</th>
+                <th scope="col">Comments</th>
+                <th scope="col">Last Review</th>
+              </tr>
+            </thead>
+            <tbody id="merged-body" aria-live="polite"></tbody>
+          </table>
+          <div class="pagination" id="merged-pagination"></div>
+        </div>
+      </details>
+    </section>
+
+    <section class="section">
+      <details class="section-details" id="scans-section">
+        <summary class="section-head section-head-toggle" aria-label="Toggle recent scans section">
+          <div class="section-copy">
+            <div class="section-name">
+              <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path fill-rule="evenodd" d="M8 2.5a5.487 5.487 0 00-4.131 1.869l1.204 1.204A.25.25 0 014.896 6H1.25A.25.25 0 011 5.75V2.104a.25.25 0 01.427-.177l1.38 1.38A7.001 7.001 0 0115 8a.75.75 0 01-1.5 0A5.5 5.5 0 008 2.5zM2.5 8a.75.75 0 00-1.5 0 7.001 7.001 0 0012.193 4.693l1.38 1.38a.25.25 0 00.427-.177V10.25a.25.25 0 00-.25-.25h-3.646a.25.25 0 00-.177.427l1.204 1.204A5.5 5.5 0 012.5 8z"/></svg>
+              Recent Scans
+              <span class="section-count">10</span>
+            </div>
+            <div class="section-subtitle">What the scanner picked up and handed off.</div>
+          </div>
+          <svg class="section-toggle-chevron" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M6.22 3.22a.75.75 0 011.06 0l4.25 4.25a.75.75 0 010 1.06l-4.25 4.25a.75.75 0 01-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 010-1.06z" fill="currentColor"/></svg>
+        </summary>
+        <div class="card card-secondary" role="region" aria-label="Recent scans">
+          <table aria-label="Scan history">
+            <thead>
+              <tr>
+                <th scope="col">Time</th>
+                <th scope="col">PRs Found</th>
+                <th scope="col">Reviews Triggered</th>
+                <th scope="col">Status</th>
+              </tr>
+            </thead>
+            <tbody id="scan-body" aria-live="polite"></tbody>
+          </table>
+        </div>
+      </details>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <div class="section-copy">
+          <div class="section-name">
+            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path fill-rule="evenodd" d="M1.5 8a6.5 6.5 0 1113 0 6.5 6.5 0 01-13 0zM8 0a8 8 0 100 16A8 8 0 008 0zm.5 4.75a.75.75 0 00-1.5 0v3.5a.75.75 0 00.37.65l2.5 1.5a.75.75 0 10.76-1.3L8.5 7.94V4.75z"/></svg>
+            Review Lifecycle
+          </div>
+          <div class="section-subtitle">The journey of a pull request, from open to approved.</div>
+        </div>
+      </div>
+      <div class="card lifecycle-card">
+        <div class="lifecycle-diagram">
+          <svg viewBox="0 -16 840 272" xmlns="http://www.w3.org/2000/svg" class="lifecycle-svg">
+            <!--
+              Grid: 5 columns x 3 rows.  Orthogonal edges with r=8 rounded corners.
+              Col centers:  70   220   390   560   730
+              Row centers:  40   120   200
+              Node: w=112 h=36 rx=10  (wide: w=120)
+              Edges: top=22 bottom=58 left=cx-56 right=cx+56  (wide: cx-60/+60)
+            -->
+            <defs>
+              <marker id="ah" markerWidth="7" markerHeight="6" refX="6.5" refY="3" orient="auto"><path d="M0.5,0.5 L6,3 L0.5,5.5" fill="none" stroke="rgba(155,184,255,0.5)" stroke-width="1" stroke-linejoin="round"/></marker>
+              <marker id="ah-r" markerWidth="7" markerHeight="6" refX="6.5" refY="3" orient="auto"><path d="M0.5,0.5 L6,3 L0.5,5.5" fill="none" stroke="rgba(255,152,152,0.5)" stroke-width="1" stroke-linejoin="round"/></marker>
+              <marker id="ah-g" markerWidth="7" markerHeight="6" refX="6.5" refY="3" orient="auto"><path d="M0.5,0.5 L6,3 L0.5,5.5" fill="none" stroke="rgba(158,210,180,0.5)" stroke-width="1" stroke-linejoin="round"/></marker>
+              <marker id="ah-m" markerWidth="7" markerHeight="6" refX="6.5" refY="3" orient="auto"><path d="M0.5,0.5 L6,3 L0.5,5.5" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1" stroke-linejoin="round"/></marker>
+            </defs>
+
+            <!-- Row 0 -->
+            <g class="lc-node lc-node-muted"><rect x="14" y="22" width="112" height="36" rx="10"/><text x="70" y="40" dy="0.35em">New PR</text></g>
+            <g class="lc-node lc-node-active"><rect x="160" y="22" width="120" height="36" rx="10"/><text x="220" y="40" dy="0.35em">waiting-ci</text></g>
+            <g class="lc-node lc-node-active"><rect x="334" y="22" width="112" height="36" rx="10"/><text x="390" y="40" dy="0.35em">pending</text></g>
+            <g class="lc-node lc-node-active"><rect x="500" y="22" width="120" height="36" rx="10"/><text x="560" y="40" dy="0.35em">reviewing</text></g>
+            <g class="lc-node lc-node-reviewed"><rect x="674" y="22" width="112" height="36" rx="10"/><text x="730" y="40" dy="0.35em">reviewed</text></g>
+
+            <!-- Row 1 -->
+            <g class="lc-node lc-node-danger"><rect x="160" y="102" width="120" height="36" rx="10"/><text x="220" y="120" dy="0.35em">ci-failed</text></g>
+            <g class="lc-node lc-node-danger"><rect x="504" y="102" width="112" height="36" rx="10"/><text x="560" y="120" dy="0.35em">failed</text></g>
+            <g class="lc-node lc-node-success"><rect x="674" y="102" width="112" height="36" rx="10"/><text x="730" y="120" dy="0.35em">resolved</text></g>
+
+            <!-- Row 2 -->
+            <g class="lc-node lc-node-success"><rect x="674" y="182" width="112" height="36" rx="10"/><text x="730" y="200" dy="0.35em">approved</text></g>
+
+            <!-- === Edges === -->
+
+            <!-- 1. New PR → waiting-ci (straight) -->
+            <line x1="126" y1="40" x2="156" y2="40" class="lc-edge" marker-end="url(#ah)"/>
+            <text x="141" y="34" class="lc-label">TiDB</text>
+
+            <!-- 2. Non-TiDB: New PR top → up → right → down → pending top -->
+            <path d="M 70 22 V 8 A 8 8 0 0 1 78 0 H 382 A 8 8 0 0 1 390 8 V 18" class="lc-edge lc-edge-muted" marker-end="url(#ah-m)"/>
+            <text x="230" y="-4" class="lc-label lc-label-dim">non-TiDB</text>
+
+            <!-- 3. waiting-ci → pending (straight) -->
+            <line x1="280" y1="40" x2="330" y2="40" class="lc-edge" marker-end="url(#ah)"/>
+            <text x="305" y="34" class="lc-label">CI pass</text>
+
+            <!-- 4. waiting-ci → ci-failed (straight down) -->
+            <line x1="220" y1="58" x2="220" y2="98" class="lc-edge lc-edge-danger" marker-end="url(#ah-r)"/>
+            <text x="234" y="82" class="lc-label">fail</text>
+
+            <!-- 5. Recover: ci-failed left → left → up → right → waiting-ci left -->
+            <path d="M 160 120 H 148 A 8 8 0 0 1 140 112 V 48 A 8 8 0 0 1 148 40 H 156" class="lc-edge" marker-end="url(#ah)"/>
+            <text x="112" y="80" class="lc-label lc-label-dim">recover</text>
+
+            <!-- 6. pending → reviewing (straight) -->
+            <line x1="446" y1="40" x2="496" y2="40" class="lc-edge" marker-end="url(#ah)"/>
+            <text x="471" y="34" class="lc-label">run</text>
+
+            <!-- 7. reviewing → reviewed (straight) -->
+            <line x1="620" y1="40" x2="670" y2="40" class="lc-edge lc-edge-success" marker-end="url(#ah-g)"/>
+            <text x="645" y="34" class="lc-label">done</text>
+
+            <!-- 8. reviewing → failed (straight down) -->
+            <line x1="560" y1="58" x2="560" y2="98" class="lc-edge lc-edge-danger" marker-end="url(#ah-r)"/>
+            <text x="574" y="82" class="lc-label">error</text>
+
+            <!-- 9. Retry: failed top → up to y=80 → left to x=396 → up → pending bottom -->
+            <path d="M 560 102 V 88 A 8 8 0 0 0 552 80 H 404 A 8 8 0 0 1 396 72 V 58" class="lc-edge" marker-end="url(#ah)"/>
+            <text x="478" y="74" class="lc-label">retry</text>
+
+            <!-- 10. reviewed → resolved (straight down) -->
+            <line x1="730" y1="58" x2="730" y2="98" class="lc-edge lc-edge-success" marker-end="url(#ah-g)"/>
+            <text x="766" y="82" class="lc-label lc-label-dim">resolve</text>
+
+            <!-- 11. Recheck: approved bottom → down to y=230 → left to x=384 → up → pending bottom -->
+            <path d="M 730 218 V 230 A 8 8 0 0 1 722 238 H 392 A 8 8 0 0 1 384 230 V 58" class="lc-edge lc-edge-muted" marker-end="url(#ah-m)"/>
+            <text x="557" y="250" class="lc-label lc-label-dim">recheck</text>
+
+            <!-- 12. resolved → approved (straight down) -->
+            <line x1="730" y1="138" x2="730" y2="178" class="lc-edge lc-edge-success" marker-end="url(#ah-g)"/>
+            <text x="758" y="162" class="lc-label lc-label-dim">label</text>
+
+            <!-- 13. reviewed → approved (right side down, orthogonal) -->
+            <path d="M 786 40 H 794 A 8 8 0 0 1 802 48 V 192 A 8 8 0 0 1 794 200 H 790" class="lc-edge lc-edge-success" marker-end="url(#ah-g)"/>
+            <text x="816" y="120" class="lc-label lc-label-dim">label</text>
+          </svg>
+        </div>
+        <div class="lifecycle-legend">
+          <div class="lifecycle-legend-item"><span class="pill pill-waiting-ci"><span class="pill-dot"></span>waiting-ci</span>CI is still running</div>
+          <div class="lifecycle-legend-item"><span class="pill pill-ci-failed"><span class="pill-dot"></span>ci-failed</span>CI didn't pass. Triage it</div>
+          <div class="lifecycle-legend-item"><span class="pill pill-pending"><span class="pill-dot"></span>pending</span>In line for review</div>
+          <div class="lifecycle-legend-item"><span class="pill pill-reviewing"><span class="pill-dot"></span>reviewing</span>Reviewer is thinking</div>
+          <div class="lifecycle-legend-item"><span class="pill pill-reviewed"><span class="pill-dot"></span>reviewed</span>Comments left to address</div>
+          <div class="lifecycle-legend-item"><span class="pill pill-resolved"><span class="pill-dot"></span>resolved</span>Every thread wrapped up</div>
+          <div class="lifecycle-legend-item"><span class="pill pill-failed"><span class="pill-dot"></span>failed</span>Hit an error. Retrying</div>
+          <div class="lifecycle-legend-item"><span class="pill pill-approved"><span class="pill-dot"></span>approved</span>Good to go</div>
+          <div class="lifecycle-legend-item"><span class="pill pill-no-go-changes"><span class="pill-dot"></span>no-go-changes</span>No Go files to review</div>
+        </div>
+
+        <details class="triage-example" open>
+          <summary class="triage-example-head">
+            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M8 1.5a6.5 6.5 0 100 13 6.5 6.5 0 000-13zM0 8a8 8 0 1116 0A8 8 0 010 8zm9-3a1 1 0 11-2 0 1 1 0 012 0zM6.75 8a.75.75 0 000 1.5h.5v2h-.5a.75.75 0 000 1.5h2.5a.75.75 0 000-1.5H9V8z"/></svg>
+            <span class="triage-example-title">What is Triage CI?</span>
+            <a class="triage-example-link" href="https://github.com/GMHDBJD/skills/tree/main/dont-retest" target="_blank" rel="noopener">dont-retest skill &nearr;</a>
+            <svg class="section-toggle-chevron" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M6.22 3.22a.75.75 0 011.06 0l4.25 4.25a.75.75 0 010 1.06l-4.25 4.25a.75.75 0 01-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 010-1.06z" fill="currentColor"/></svg>
+          </summary>
+          <div class="triage-example-desc">
+            When a PR enters <strong>ci-failed</strong>, clicking <strong>Triage CI</strong> invokes Codex with the
+            <a class="triage-example-link" href="https://github.com/GMHDBJD/skills/tree/main/dont-retest" target="_blank" rel="noopener">dont-retest</a>
+            skill. It collects every failing CI check, extracts failure signatures from logs, classifies the root cause, and posts a structured report as a PR comment. Below is an example of the report it produces:
+          </div>
+
+          <div class="triage-mock">
+            <h4>CI Failure Triage Report</h4>
+            <table>
+              <thead>
+                <tr><th>Check</th><th>Classification</th><th>Confidence</th><th>Signature</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>idc-jenkins-ci-tidb/unit-test</code></td>
+                  <td><span class="triage-classification flaky">probable_flaky</span></td>
+                  <td>medium</td>
+                  <td><code>TestIndexMerge: timeout after 300s</code></td>
+                </tr>
+                <tr>
+                  <td><code>pull-unit-test-next-gen</code></td>
+                  <td><span class="triage-classification infra">probable_infra</span></td>
+                  <td>high</td>
+                  <td><code>OOMKilled</code></td>
+                </tr>
+                <tr>
+                  <td><code>idc-jenkins-ci-tidb/build</code></td>
+                  <td><span class="triage-classification regression">pr_regression</span></td>
+                  <td>high</td>
+                  <td><code>planner/core: undefined: plannercore.NewCtx</code></td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div class="triage-detail-block">
+              <strong><code>idc-jenkins-ci-tidb/unit-test</code> &mdash; <span class="triage-classification flaky">probable_flaky</span> (medium)</strong>
+              <div class="triage-detail-row"><span>Failing test:</span> <span><code>TestIndexMerge</code> in <code>pkg/executor/test/...</code></span></div>
+              <div class="triage-detail-row"><span>Signature:</span> <span><code>timeout after 300s</code></span></div>
+              <div class="triage-detail-row"><span>Evidence:</span> <span>This test has timed out 3 times this week on unrelated PRs</span></div>
+              <div class="triage-detail-row"><span>Log:</span> <span><a class="triage-example-link" href="#" onclick="return false">Jenkins link &nearr;</a></span></div>
+            </div>
+
+            <div class="triage-detail-block">
+              <strong><code>pull-unit-test-next-gen</code> &mdash; <span class="triage-classification infra">probable_infra</span> (high)</strong>
+              <div class="triage-detail-row"><span>Failing test:</span> <span>N/A (infrastructure failure)</span></div>
+              <div class="triage-detail-row"><span>Signature:</span> <span><code>OOMKilled</code></span></div>
+              <div class="triage-detail-row"><span>Evidence:</span> <span>Pod killed by OOM before tests started</span></div>
+              <div class="triage-detail-row"><span>Log:</span> <span><a class="triage-example-link" href="#" onclick="return false">Prow link &nearr;</a></span></div>
+            </div>
+
+            <div class="triage-detail-block">
+              <strong><code>idc-jenkins-ci-tidb/build</code> &mdash; <span class="triage-classification regression">pr_regression</span> (high)</strong>
+              <div class="triage-detail-row"><span>Failing test:</span> <span><code>build</code> (compilation error)</span></div>
+              <div class="triage-detail-row"><span>Signature:</span> <span><code>planner/core: undefined: plannercore.NewCtx</code></span></div>
+              <div class="triage-detail-row"><span>Evidence:</span> <span>Error is in <code>pkg/planner/core/</code>, touched by this PR</span></div>
+              <div class="triage-detail-row"><span>Log:</span> <span><a class="triage-example-link" href="#" onclick="return false">Jenkins link &nearr;</a></span></div>
+            </div>
+
+            <div class="triage-mock-footer">Generated by RaaS CI Triage &mdash; report only, no actions taken</div>
+          </div>
+        </details>
+      </div>
+    </section>
+  </div>
+
+  <div class="toast" id="toast" role="alert" aria-live="assertive">Updated</div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
