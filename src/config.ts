@@ -60,8 +60,8 @@ Return the orchestration status JSON after the skill finishes.`;
 
 const DEFAULT_TRIAGE_PROMPT = `Invoke skill \`dont-retest\` with pr_link={pr_link}.
 Generate a CI failure triage report only — do not take automated actions.
-Post the triage report as a PR comment on {pr_link}.
-Return a JSON status summary after the skill finishes.`;
+Do not post, update, or reply to any GitHub PR comments.
+Return one final JSON status summary after the skill finishes, including the triage report payload for dashboard display.`;
 
 const DEFAULT_FOLLOWUP_PROMPT = `You are following up on your code review for PR #{number} in repository {repo}.
 
@@ -79,6 +79,12 @@ Only process the exact follow-up targets below. Ignore every other PR comment or
 {followup_targets_json}
 \`\`\`
 
+Tone guidelines:
+- You are a helpful assistant, not a gatekeeper. Be respectful and collaborative.
+- When the author explains a design decision (e.g. "by design", "intentional", "we prefer this"), accept their judgment and resolve the thread. The author understands their codebase better than you do.
+- When in doubt, lean toward resolving. Only keep a thread open if the concern has clear, concrete impact on correctness or security that the author's reply did not address.
+- Never argue, repeat your original point, or insist. If the author disagrees, trust them.
+
 Steps:
 1. Use \`gh api repos/{repo}/pulls/{number}/comments\` to fetch review comments
 2. Restrict work to the target entries listed above:
@@ -88,8 +94,14 @@ Steps:
 3. If the target list is empty, exit without posting or resolving anything.
 4. Read the relevant source files for context if needed
 5. For each listed target:
-   a. If the concern is adequately addressed, resolve the review thread
-   b. If not, post a follow-up comment explaining what still needs work`;
+   a. If the author's reply provides a reasonable explanation (design intent, project convention, deliberate trade-off, etc.), resolve the thread — even if you would have done it differently.
+   b. Only post a follow-up if there is a clear, unaddressed correctness or security issue. Keep it concise and deferential: acknowledge the author's point, then briefly explain the remaining concern. Do not restate your original comment.
+6. When resolving a thread, first try the GraphQL \`resolveReviewThread\` mutation. If that fails (e.g. permission error), reply to the thread with a comment as a fallback to mark it soft-resolved. The comment MUST follow this format:
+   - Start with exactly \`✅\` (this prefix is required for soft-resolved detection — do NOT omit or change it)
+   - Follow with a brief summary of your understanding of the entire discussion thread — what the original concern was, what the author replied, and why you consider it resolved
+   - Keep it concise (2-4 sentences). Write in first person. Example:
+     \`✅ I raised a concern about potential nil pointer dereference in the error path. The author explained that the caller guarantees non-nil input via validation in the middleware layer. That's a reasonable design — the upstream guard makes the check redundant here.\`
+   - Do NOT use the same wording every time — tailor each summary to the specific discussion.`;
 
 export function loadConfig(configPath?: string): Config {
   const p = configPath || path.join(process.cwd(), 'config.yaml');

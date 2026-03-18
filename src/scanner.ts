@@ -47,6 +47,63 @@ function log(msg: string, data?: Record<string, unknown>) {
   }
 }
 
+function isObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function parseRunMetadata(raw: string | null): Record<string, unknown> {
+  if (!raw) {
+    return {};
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (isObject(parsed)) {
+      return parsed;
+    }
+  } catch {
+    // Preserve execution even if older metadata is malformed.
+  }
+
+  return { legacy_metadata: raw };
+}
+
+function buildCompletedRunMetadata(raw: string | null, result: Awaited<ReturnType<typeof runCodexReview>>): string {
+  const metadata = parseRunMetadata(raw);
+  metadata.log_file = path.basename(result.logFile);
+
+  if (result.executionStatus) {
+    metadata.execution_status = result.executionStatus;
+  }
+  if (result.executionReason) {
+    metadata.execution_reason = result.executionReason;
+  }
+
+  if (isObject(result.finalPayload)) {
+    const pr = isObject(result.finalPayload.pr) ? result.finalPayload.pr : null;
+    if (pr && typeof pr.head_sha === 'string') {
+      metadata.head_sha = pr.head_sha;
+    }
+
+    if (typeof result.finalPayload.skill === 'string') {
+      metadata.skill = result.finalPayload.skill;
+    }
+
+    const report = isObject(result.finalPayload.report) ? result.finalPayload.report : null;
+    if (report) {
+      metadata.triage_report = report;
+      if (typeof report.summary === 'string') {
+        metadata.report_summary = report.summary;
+      }
+      if (typeof report.comment_url === 'string') {
+        metadata.comment_url = report.comment_url;
+      }
+    }
+  }
+
+  return JSON.stringify(metadata);
+}
+
 function parseRepo(fullName: string): { owner: string; repo: string } {
   const [owner, repo] = fullName.split('/');
   return { owner, repo };
@@ -415,7 +472,9 @@ export async function scan(config: Config, storage: Storage, github: GitHubClien
 
           const tracked = upsertTrackedPR(storage, repoFullName, pr);
           if (hasApprovedLabel) {
-            storage.updatePRStatus(tracked.id, 'approved');
+            if (!storage.getActiveReviewRun(tracked.id)) {
+              storage.updatePRStatus(tracked.id, 'approved');
+            }
             continue;
           }
 
@@ -535,6 +594,20 @@ export async function processReviewQueue(config: Config, storage: Storage, githu
         continue;
       }
 
+      // Notify on the PR that a review is starting
+      try {
+        const { owner: o, repo: r } = parseRepo(run.repo);
+        const msgs: Record<string, string> = {
+          initial: `🔍 Starting code review for this PR...`,
+          recheck: `🔍 New commits detected — starting re-review...`,
+          followup: `🔍 Processing follow-up on review comments...`,
+          'ci-triage': `🔍 Starting CI failure triage...`,
+        };
+        await github.createPRComment(o, r, run.pr_number, msgs[run.type] || msgs.initial);
+      } catch (err: any) {
+        log(`Failed to post review-start comment on ${run.repo}#${run.pr_number}: ${err.message}`);
+      }
+
       // Run review synchronously — block scan until review completes
       try {
         const followupMetadata = run.type === 'followup' ? parseFollowupMetadata(run.metadata) : undefined;
@@ -548,7 +621,7 @@ export async function processReviewQueue(config: Config, storage: Storage, githu
 
         const completedAt = new Date().toISOString();
         const orchestrationSucceeded = result.executionStatus
-          ? result.executionStatus === 'success'
+          ? result.executionStatus === 'success' || result.executionStatus === 'completed'
           : true;
         const status = result.exitCode === 0 && orchestrationSucceeded ? 'completed' : 'failed';
         const failureDetail = result.executionStatus && result.executionStatus !== 'success'
@@ -560,6 +633,7 @@ export async function processReviewQueue(config: Config, storage: Storage, githu
           completed_at: completedAt,
           duration_ms: result.durationMs,
           exit_code: result.exitCode,
+          metadata: buildCompletedRunMetadata(run.metadata, result),
           error: status === 'failed'
             ? `${failureDetail ? `${failureDetail}. ` : ''}See log: ${path.basename(result.logFile)}`
             : undefined,

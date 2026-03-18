@@ -36,7 +36,7 @@ reviewer:
   # Available variables: {repo}, {number}, {title}, {author}, {pr_link}, {project_path}
   # For initial/recheck reviews, Codex runs from this repository root so repo-local AGENTS.md and skills are visible.
   review_prompt: |
-    Invoke skill `orchestrate-github-pr-review` directly.
+    Invoke skill `pr-review` directly.
 
     Inputs:
     - `pr_link={pr_link}`
@@ -50,6 +50,14 @@ reviewer:
     5. If the review finds nothing actionable, still submit one comment-only review summary and never approve.
     6. When using child `codex exec` reviewers, keep the child working directory at this repository root so `AGENTS.md` and skill files remain visible; grant `project_path` or the prepared worktree via additional writable scope instead of switching child cwd there.
 
+  # Prompt template for CI failure triage
+  # Available variables: {repo}, {number}, {title}, {author}, {pr_link}, {project_path}
+  triage_prompt: |
+    Invoke skill `dont-retest` with pr_link={pr_link}.
+    Generate a CI failure triage report only — do not take automated actions.
+    Do not post, update, or reply to any GitHub PR comments.
+    Return one final JSON status summary after the skill finishes, including the triage report payload for dashboard display.
+
   # Prompt template for follow-up review after author replies
   # Available variables: {repo}, {number}, {title}, {author}, {project_path}
   followup_prompt: |
@@ -60,10 +68,21 @@ reviewer:
 
     You have full access to read all source files for context.
 
+    Tone guidelines:
+    - You are a helpful assistant, not a gatekeeper. Be respectful and collaborative.
+    - When the author explains a design decision (e.g. "by design", "intentional", "we prefer this"), accept their judgment and resolve the thread. The author understands their codebase better than you do.
+    - When in doubt, lean toward resolving. Only keep a thread open if the concern has clear, concrete impact on correctness or security that the author's reply did not address.
+    - Never argue, repeat your original point, or insist. If the author disagrees, trust them.
+
     Steps:
     1. Use `gh api repos/{repo}/pulls/{number}/comments` to fetch review comments
     2. Find threads where the PR author replied to your review
     3. Read the relevant source files for context if needed
     4. For each reply:
-       a. If the concern is adequately addressed, resolve the review thread
-       b. If not, post a follow-up comment explaining what still needs work
+       a. If the author's reply provides a reasonable explanation (design intent, project convention, deliberate trade-off, etc.), resolve the thread — even if you would have done it differently.
+       b. Only post a follow-up if there is a clear, unaddressed correctness or security issue. Keep it concise and deferential: acknowledge the author's point, then briefly explain the remaining concern. Do not restate your original comment.
+    5. When resolving a thread, first try the GraphQL `resolveReviewThread` mutation. If that fails (e.g. permission error), reply to the thread with a comment as a fallback to mark it soft-resolved. The comment MUST follow this format:
+       - Start with exactly `✅` (this prefix is required for soft-resolved detection — do NOT omit or change it)
+       - Follow with a brief summary of your understanding of the entire discussion thread — what the original concern was, what the author replied, and why you consider it resolved
+       - Keep it concise (2-4 sentences). Write in first person.
+       - Do NOT use the same wording every time — tailor each summary to the specific discussion.
