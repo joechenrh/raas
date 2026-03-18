@@ -7,6 +7,7 @@ const exec = promisify(execFile);
 
 const REPOS_DIR = path.join(process.cwd(), 'outputs', 'repos');
 const SYNC_REVIEW_SKILLS_SCRIPT = path.join(process.cwd(), 'scripts', 'sync_repo_review_skills.sh');
+let hasWarnedMissingSkillSyncScript = false;
 
 function log(msg: string) {
   console.log(`[${new Date().toISOString()}] [repos] ${msg}`);
@@ -22,6 +23,13 @@ async function run(cmd: string, args: string[], cwd: string, timeout = 120_000):
 }
 
 async function syncReviewSkills(targetPath: string): Promise<void> {
+  if (!fs.existsSync(SYNC_REVIEW_SKILLS_SCRIPT)) {
+    if (!hasWarnedMissingSkillSyncScript) {
+      log(`Review skill sync script not found at ${SYNC_REVIEW_SKILLS_SCRIPT}; skipping repo-local skill sync`);
+      hasWarnedMissingSkillSyncScript = true;
+    }
+    return;
+  }
   await run('bash', [SYNC_REVIEW_SKILLS_SCRIPT, '--target', targetPath], process.cwd(), 120_000);
 }
 
