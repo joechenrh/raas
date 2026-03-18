@@ -77,6 +77,19 @@ function dedupeStatusChecks(checks: PRStatusCheck[]): PRStatusCheck[] {
   return result;
 }
 
+/** Marker the bot comments when it lacks permission to resolve a thread via GraphQL. */
+export const RESOLVED_MARKER = '✅';
+
+/** A thread is "soft-resolved" if its last bot comment starts with the resolved marker. */
+function isBotSoftResolved(thread: ReviewThread, botUser: string): boolean {
+  for (let i = thread.comments.length - 1; i >= 0; i--) {
+    if (thread.comments[i].author === botUser) {
+      return thread.comments[i].body.trim().startsWith(RESOLVED_MARKER);
+    }
+  }
+  return false;
+}
+
 export class GitHubClient {
   private octokit: Octokit;
   private _botUser: string | null = null;
@@ -268,7 +281,7 @@ export class GitHubClient {
       return {
         threads: botThreads,
         totalComments: botThreads.length,
-        unresolvedCount: botThreads.filter((t) => !t.isResolved).length,
+        unresolvedCount: botThreads.filter((t) => !t.isResolved && !isBotSoftResolved(t, botUser)).length,
       };
     } catch (err) {
       console.error('[github] GraphQL query failed:', err);
@@ -287,7 +300,7 @@ export class GitHubClient {
     const targets: FollowupTarget[] = [];
 
     for (const thread of threads) {
-      if (thread.isResolved) continue;
+      if (thread.isResolved || isBotSoftResolved(thread, botUser)) continue;
 
       const parentCommentId = thread.comments[0]?.id;
       if (!parentCommentId) continue;
@@ -313,5 +326,15 @@ export class GitHubClient {
   async hasNewReplies(owner: string, repo: string, number: number, since: string): Promise<boolean> {
     const { targets } = await this.getFollowupTargets(owner, repo, number, since);
     return targets.length > 0;
+  }
+
+  async createPRComment(owner: string, repo: string, number: number, body: string): Promise<{ url: string }> {
+    const { data } = await this.octokit.issues.createComment({
+      owner,
+      repo,
+      issue_number: number,
+      body,
+    });
+    return { url: data.html_url };
   }
 }
