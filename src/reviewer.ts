@@ -12,6 +12,7 @@ export interface ReviewResult {
   durationMs: number;
   executionStatus?: string;
   executionReason?: string;
+  finalPayload?: Record<string, unknown>;
 }
 
 export interface FollowupReviewMetadata {
@@ -65,9 +66,85 @@ function hasExplicitCodexCdArg(args: string[]): boolean {
   return args.includes('-C') || args.includes('--cd');
 }
 
-function extractExecutionSummary(logFilePath: string): { executionStatus?: string; executionReason?: string } {
+function extractLastJsonObject(content: string): Record<string, unknown> | undefined {
+  const candidateStarts: number[] = [];
+  for (let i = 0; i < content.length; i++) {
+    if (content[i] === '{' && (i === 0 || content[i - 1] === '\n')) {
+      candidateStarts.push(i);
+    }
+  }
+
+  for (let i = candidateStarts.length - 1; i >= 0; i--) {
+    const candidateStart = candidateStarts[i];
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+
+    for (let cursor = candidateStart; cursor < content.length; cursor++) {
+      const ch = content[cursor];
+
+      if (inString) {
+        if (escaped) {
+          escaped = false;
+        } else if (ch === '\\') {
+          escaped = true;
+        } else if (ch === '"') {
+          inString = false;
+        }
+        continue;
+      }
+
+      if (ch === '"') {
+        inString = true;
+        continue;
+      }
+
+      if (ch === '{') {
+        depth++;
+        continue;
+      }
+
+      if (ch !== '}') {
+        continue;
+      }
+
+      depth--;
+      if (depth !== 0) {
+        continue;
+      }
+
+      try {
+        const parsed = JSON.parse(content.slice(candidateStart, cursor + 1)) as unknown;
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          return parsed as Record<string, unknown>;
+        }
+      } catch {
+        break;
+      }
+
+      break;
+    }
+  }
+
+  return undefined;
+}
+
+function extractExecutionSummary(logFilePath: string): {
+  executionStatus?: string;
+  executionReason?: string;
+  finalPayload?: Record<string, unknown>;
+} {
   try {
     const content = fs.readFileSync(logFilePath, 'utf-8');
+    const finalPayload = extractLastJsonObject(content);
+    if (finalPayload) {
+      return {
+        executionStatus: typeof finalPayload.status === 'string' ? finalPayload.status : undefined,
+        executionReason: typeof finalPayload.reason === 'string' ? finalPayload.reason : undefined,
+        finalPayload,
+      };
+    }
+
     const lines = content.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
 
     for (let i = lines.length - 1; i >= 0; i--) {
@@ -138,7 +215,7 @@ export async function runCodexReview(
     reviewer_login: followupMetadata.botUser,
     followup_targets_json: JSON.stringify(followupMetadata.targets, null, 2),
   });
-  const codexCwd = type === 'followup' ? projectPath : appRoot;
+  const codexCwd = type === 'followup' || type === 'ci-triage' ? projectPath : appRoot;
 
   // Create log file for this review
   ensureLogsDir();
