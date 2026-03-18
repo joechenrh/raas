@@ -181,105 +181,117 @@
         </div>
       </div>
       <div class="card lifecycle-card">
-        <div class="lifecycle-diagram">
-          <svg viewBox="0 -16 840 272" xmlns="http://www.w3.org/2000/svg" class="lifecycle-svg">
-            <!--
-              Grid: 5 columns x 3 rows.  Orthogonal edges with r=8 rounded corners.
-              Col centers:  70   220   390   560   730
-              Row centers:  40   120   200
-              Node: w=112 h=36 rx=10  (wide: w=120)
-              Edges: top=22 bottom=58 left=cx-56 right=cx+56  (wide: cx-60/+60)
-            -->
-            <defs>
-              <marker id="ah" markerWidth="7" markerHeight="6" refX="6.5" refY="3" orient="auto"><path d="M0.5,0.5 L6,3 L0.5,5.5" fill="none" stroke="rgba(155,184,255,0.5)" stroke-width="1" stroke-linejoin="round"/></marker>
-              <marker id="ah-r" markerWidth="7" markerHeight="6" refX="6.5" refY="3" orient="auto"><path d="M0.5,0.5 L6,3 L0.5,5.5" fill="none" stroke="rgba(255,152,152,0.5)" stroke-width="1" stroke-linejoin="round"/></marker>
-              <marker id="ah-g" markerWidth="7" markerHeight="6" refX="6.5" refY="3" orient="auto"><path d="M0.5,0.5 L6,3 L0.5,5.5" fill="none" stroke="rgba(158,210,180,0.5)" stroke-width="1" stroke-linejoin="round"/></marker>
-              <marker id="ah-m" markerWidth="7" markerHeight="6" refX="6.5" refY="3" orient="auto"><path d="M0.5,0.5 L6,3 L0.5,5.5" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1" stroke-linejoin="round"/></marker>
-            </defs>
+        <div class="lifecycle-shell">
+          <div class="lifecycle-banner">
+            <span class="nav-tag">TiDB reviews wait for CI gate</span>
+            <span class="nav-tag">non-TiDB PRs enter review queue directly</span>
+            <span class="nav-tag">recheck loops back from approved to pending</span>
+          </div>
 
-            <!-- Row 0 -->
-            <g class="lc-node lc-node-muted"><rect x="14" y="22" width="112" height="36" rx="10"/><text x="70" y="40" dy="0.35em">New PR</text></g>
-            <g class="lc-node lc-node-active"><rect x="160" y="22" width="120" height="36" rx="10"/><text x="220" y="40" dy="0.35em">waiting-ci</text></g>
-            <g class="lc-node lc-node-active"><rect x="334" y="22" width="112" height="36" rx="10"/><text x="390" y="40" dy="0.35em">pending</text></g>
-            <g class="lc-node lc-node-active"><rect x="500" y="22" width="120" height="36" rx="10"/><text x="560" y="40" dy="0.35em">reviewing</text></g>
-            <g class="lc-node lc-node-reviewed"><rect x="674" y="22" width="112" height="36" rx="10"/><text x="730" y="40" dy="0.35em">reviewed</text></g>
+          <div class="lifecycle-main-lane">
+            <div class="lifecycle-step-card">
+              <span class="pill pill-new-pr"><span class="pill-dot"></span>new-pr</span>
+              <strong>New PR</strong>
+              <p>Scanner picks it up.</p>
+            </div>
+            <div class="lifecycle-connector">
+              <span class="lifecycle-connector-line"></span>
+              <span class="lifecycle-connector-label">TiDB only</span>
+            </div>
+            <div class="lifecycle-step-card">
+              <span class="pill pill-waiting-ci"><span class="pill-dot"></span>waiting-ci</span>
+              <strong>Wait For CI</strong>
+              <p>TiDB PRs wait for the CI gate.</p>
+            </div>
+            <div class="lifecycle-connector">
+              <span class="lifecycle-connector-line"></span>
+              <span class="lifecycle-connector-label">gate passed</span>
+            </div>
+            <div class="lifecycle-step-card">
+              <span class="pill pill-pending"><span class="pill-dot"></span>pending</span>
+              <strong>Queued</strong>
+              <p>Ready and waiting to run.</p>
+            </div>
+            <div class="lifecycle-connector">
+              <span class="lifecycle-connector-line"></span>
+              <span class="lifecycle-connector-label">start review</span>
+            </div>
+            <div class="lifecycle-step-card">
+              <span class="pill pill-reviewing"><span class="pill-dot"></span>reviewing</span>
+              <strong>Review Running</strong>
+              <p>Codex is running the review.</p>
+            </div>
+            <div class="lifecycle-connector">
+              <span class="lifecycle-connector-line lifecycle-connector-success"></span>
+              <span class="lifecycle-connector-label">review done</span>
+            </div>
+            <div class="lifecycle-step-card">
+              <span class="pill pill-reviewed"><span class="pill-dot"></span>reviewed</span>
+              <strong>Feedback Left</strong>
+              <p>Findings are posted on the PR.</p>
+            </div>
+          </div>
 
-            <!-- Row 1 -->
-            <g class="lc-node lc-node-danger"><rect x="160" y="102" width="120" height="36" rx="10"/><text x="220" y="120" dy="0.35em">ci-failed</text></g>
-            <g class="lc-node lc-node-danger"><rect x="504" y="102" width="112" height="36" rx="10"/><text x="560" y="120" dy="0.35em">failed</text></g>
-            <g class="lc-node lc-node-success"><rect x="674" y="102" width="112" height="36" rx="10"/><text x="730" y="120" dy="0.35em">resolved</text></g>
+          <div class="lifecycle-subgrid">
+            <div class="lifecycle-panel lifecycle-panel-danger">
+              <div class="lifecycle-panel-head">
+                <span class="pill pill-ci-failed"><span class="pill-dot"></span>ci-failed</span>
+                <strong>CI Recovery Loop</strong>
+              </div>
+              <p>When TiDB CI fails, the PR stays outside the review queue. Use <strong>Triage CI</strong>, then return to <strong>waiting-ci</strong> once the failing checks recover.</p>
+              <div class="lifecycle-mini-flow">
+                <span class="pill pill-ci-failed"><span class="pill-dot"></span>ci-failed</span>
+                <span class="lifecycle-mini-arrow">recover</span>
+                <span class="pill pill-waiting-ci"><span class="pill-dot"></span>waiting-ci</span>
+              </div>
+            </div>
 
-            <!-- Row 2 -->
-            <g class="lc-node lc-node-success"><rect x="674" y="182" width="112" height="36" rx="10"/><text x="730" y="200" dy="0.35em">approved</text></g>
+            <div class="lifecycle-panel lifecycle-panel-danger">
+              <div class="lifecycle-panel-head">
+                <span class="pill pill-failed"><span class="pill-dot"></span>failed</span>
+                <strong>Reviewer Retry Loop</strong>
+              </div>
+              <p>If the review process itself errors, the run is marked failed and can be retried back into <strong>pending</strong>.</p>
+              <div class="lifecycle-mini-flow">
+                <span class="pill pill-failed"><span class="pill-dot"></span>failed</span>
+                <span class="lifecycle-mini-arrow">retry</span>
+                <span class="pill pill-pending"><span class="pill-dot"></span>pending</span>
+              </div>
+            </div>
 
-            <!-- === Edges === -->
+            <div class="lifecycle-panel lifecycle-panel-success">
+              <div class="lifecycle-panel-head">
+                <span class="pill pill-resolved"><span class="pill-dot"></span>resolved</span>
+                <strong>Resolution Ladder</strong>
+              </div>
+              <p>Once all review threads are addressed, the PR becomes <strong>resolved</strong>. Applying the approved label moves it to <strong>approved</strong>.</p>
+              <div class="lifecycle-stack">
+                <span class="pill pill-reviewed"><span class="pill-dot"></span>reviewed</span>
+                <span class="lifecycle-stack-arrow">resolve</span>
+                <span class="pill pill-resolved"><span class="pill-dot"></span>resolved</span>
+                <span class="lifecycle-stack-arrow">label</span>
+                <span class="pill pill-approved"><span class="pill-dot"></span>approved</span>
+              </div>
+            </div>
+          </div>
 
-            <!-- 1. New PR → waiting-ci (straight) -->
-            <line x1="126" y1="40" x2="156" y2="40" class="lc-edge" marker-end="url(#ah)"/>
-            <text x="141" y="34" class="lc-label">TiDB</text>
-
-            <!-- 2. Non-TiDB: New PR top → up → right → down → pending top -->
-            <path d="M 70 22 V 8 A 8 8 0 0 1 78 0 H 382 A 8 8 0 0 1 390 8 V 18" class="lc-edge lc-edge-muted" marker-end="url(#ah-m)"/>
-            <text x="230" y="-4" class="lc-label lc-label-dim">non-TiDB</text>
-
-            <!-- 3. waiting-ci → pending (straight) -->
-            <line x1="280" y1="40" x2="330" y2="40" class="lc-edge" marker-end="url(#ah)"/>
-            <text x="305" y="34" class="lc-label">CI pass</text>
-
-            <!-- 4. waiting-ci → ci-failed (straight down) -->
-            <line x1="220" y1="58" x2="220" y2="98" class="lc-edge lc-edge-danger" marker-end="url(#ah-r)"/>
-            <text x="234" y="82" class="lc-label">fail</text>
-
-            <!-- 5. Recover: ci-failed left → left → up → right → waiting-ci left -->
-            <path d="M 160 120 H 148 A 8 8 0 0 1 140 112 V 48 A 8 8 0 0 1 148 40 H 156" class="lc-edge" marker-end="url(#ah)"/>
-            <text x="112" y="80" class="lc-label lc-label-dim">recover</text>
-
-            <!-- 6. pending → reviewing (straight) -->
-            <line x1="446" y1="40" x2="496" y2="40" class="lc-edge" marker-end="url(#ah)"/>
-            <text x="471" y="34" class="lc-label">run</text>
-
-            <!-- 7. reviewing → reviewed (straight) -->
-            <line x1="620" y1="40" x2="670" y2="40" class="lc-edge lc-edge-success" marker-end="url(#ah-g)"/>
-            <text x="645" y="34" class="lc-label">done</text>
-
-            <!-- 8. reviewing → failed (straight down) -->
-            <line x1="560" y1="58" x2="560" y2="98" class="lc-edge lc-edge-danger" marker-end="url(#ah-r)"/>
-            <text x="574" y="82" class="lc-label">error</text>
-
-            <!-- 9. Retry: failed top → up to y=80 → left to x=396 → up → pending bottom -->
-            <path d="M 560 102 V 88 A 8 8 0 0 0 552 80 H 404 A 8 8 0 0 1 396 72 V 58" class="lc-edge" marker-end="url(#ah)"/>
-            <text x="478" y="74" class="lc-label">retry</text>
-
-            <!-- 10. reviewed → resolved (straight down) -->
-            <line x1="730" y1="58" x2="730" y2="98" class="lc-edge lc-edge-success" marker-end="url(#ah-g)"/>
-            <text x="766" y="82" class="lc-label lc-label-dim">resolve</text>
-
-            <!-- 11. Recheck: approved bottom → down to y=230 → left to x=384 → up → pending bottom -->
-            <path d="M 730 218 V 230 A 8 8 0 0 1 722 238 H 392 A 8 8 0 0 1 384 230 V 58" class="lc-edge lc-edge-muted" marker-end="url(#ah-m)"/>
-            <text x="557" y="250" class="lc-label lc-label-dim">recheck</text>
-
-            <!-- 12. resolved → approved (straight down) -->
-            <line x1="730" y1="138" x2="730" y2="178" class="lc-edge lc-edge-success" marker-end="url(#ah-g)"/>
-            <text x="758" y="162" class="lc-label lc-label-dim">label</text>
-
-            <!-- 13. reviewed → approved (right side down, orthogonal) -->
-            <path d="M 786 40 H 794 A 8 8 0 0 1 802 48 V 192 A 8 8 0 0 1 794 200 H 790" class="lc-edge lc-edge-success" marker-end="url(#ah-g)"/>
-            <text x="816" y="120" class="lc-label lc-label-dim">label</text>
-          </svg>
+          <div class="lifecycle-notes">
+            <div class="lifecycle-note">
+              <span class="pill pill-pending"><span class="pill-dot"></span>non-TiDB</span>
+              <span>Non-TiDB repositories skip the CI gate and enter <strong>pending</strong> directly.</span>
+            </div>
+            <div class="lifecycle-note">
+              <span class="pill pill-no-go-changes"><span class="pill-dot"></span>no-go-changes</span>
+              <span>PRs without Go file changes stop early instead of consuming review capacity.</span>
+            </div>
+            <div class="lifecycle-note">
+              <span class="pill pill-approved"><span class="pill-dot"></span>recheck</span>
+              <span>After approval, a manual recheck sends the PR back to <strong>pending</strong> for another full pass.</span>
+            </div>
+          </div>
         </div>
-        <div class="lifecycle-legend">
-          <div class="lifecycle-legend-item"><span class="pill pill-waiting-ci"><span class="pill-dot"></span>waiting-ci</span>CI is still running</div>
-          <div class="lifecycle-legend-item"><span class="pill pill-ci-failed"><span class="pill-dot"></span>ci-failed</span>CI didn't pass. Triage it</div>
-          <div class="lifecycle-legend-item"><span class="pill pill-pending"><span class="pill-dot"></span>pending</span>In line for review</div>
-          <div class="lifecycle-legend-item"><span class="pill pill-reviewing"><span class="pill-dot"></span>reviewing</span>Reviewer is thinking</div>
-          <div class="lifecycle-legend-item"><span class="pill pill-reviewed"><span class="pill-dot"></span>reviewed</span>Comments left to address</div>
-          <div class="lifecycle-legend-item"><span class="pill pill-resolved"><span class="pill-dot"></span>resolved</span>Every thread wrapped up</div>
-          <div class="lifecycle-legend-item"><span class="pill pill-failed"><span class="pill-dot"></span>failed</span>Hit an error. Retrying</div>
-          <div class="lifecycle-legend-item"><span class="pill pill-approved"><span class="pill-dot"></span>approved</span>Good to go</div>
-          <div class="lifecycle-legend-item"><span class="pill pill-no-go-changes"><span class="pill-dot"></span>no-go-changes</span>No Go files to review</div>
-        </div>
 
-        <details class="triage-example" open>
+        <details class="triage-example">
           <summary class="triage-example-head">
             <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M8 1.5a6.5 6.5 0 100 13 6.5 6.5 0 000-13zM0 8a8 8 0 1116 0A8 8 0 010 8zm9-3a1 1 0 11-2 0 1 1 0 012 0zM6.75 8a.75.75 0 000 1.5h.5v2h-.5a.75.75 0 000 1.5h2.5a.75.75 0 000-1.5H9V8z"/></svg>
             <span class="triage-example-title">What is Triage CI?</span>
@@ -289,32 +301,35 @@
           <div class="triage-example-desc">
             When a PR enters <strong>ci-failed</strong>, clicking <strong>Triage CI</strong> invokes Codex with the
             <a class="triage-example-link" href="https://github.com/GMHDBJD/skills/tree/main/dont-retest" target="_blank" rel="noopener">dont-retest</a>
-            skill. It collects every failing CI check, extracts failure signatures from logs, classifies the root cause, and posts a structured report as a PR comment. Below is an example of the report it produces:
+            skill. It collects every failing CI check, extracts failure signatures from logs, classifies the root cause, and stores a structured report in the dashboard for hover inspection. Below is the report shape shown in the tooltip:
           </div>
 
           <div class="triage-mock">
             <h4>CI Failure Triage Report</h4>
             <table>
               <thead>
-                <tr><th>Check</th><th>Classification</th><th>Confidence</th><th>Signature</th></tr>
+                <tr><th>Check</th><th>Classification</th><th>Decision Confidence</th><th>Fix Recommendation</th><th>Signature</th></tr>
               </thead>
               <tbody>
                 <tr>
                   <td><code>idc-jenkins-ci-tidb/unit-test</code></td>
                   <td><span class="triage-classification flaky">probable_flaky</span></td>
                   <td>medium</td>
+                  <td><span class="triage-fix-pill triage-fix-recommended">recommend fix (medium)</span></td>
                   <td><code>TestIndexMerge: timeout after 300s</code></td>
                 </tr>
                 <tr>
                   <td><code>pull-unit-test-next-gen</code></td>
                   <td><span class="triage-classification infra">probable_infra</span></td>
                   <td>high</td>
+                  <td>-</td>
                   <td><code>OOMKilled</code></td>
                 </tr>
                 <tr>
                   <td><code>idc-jenkins-ci-tidb/build</code></td>
                   <td><span class="triage-classification regression">pr_regression</span></td>
                   <td>high</td>
+                  <td>-</td>
                   <td><code>planner/core: undefined: plannercore.NewCtx</code></td>
                 </tr>
               </tbody>
@@ -345,6 +360,7 @@
             </div>
 
             <div class="triage-mock-footer">Generated by RaaS CI Triage &mdash; report only, no actions taken</div>
+            <div class="triage-mock-footer">Decision confidence means confidence that the classification is correct, not a flaky score.</div>
           </div>
         </details>
       </div>

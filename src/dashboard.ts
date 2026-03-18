@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import type { Hono } from 'hono';
 import type { Config } from './config.js';
 import type { GitHubClient } from './github.js';
@@ -9,6 +11,8 @@ import { serveStatic } from '@hono/node-server/serve-static';
 const RECENT_SCAN_LIMIT = 10;
 const NO_GO_CHANGES_STATUS = 'no-go-changes';
 const NO_GO_CHANGES_MESSAGE = 'No .go file changes in PR.';
+const ACTIVE_RUN_STATUSES = new Set(['pending', 'running']);
+const REVIEW_LOGS_DIR = path.join(process.cwd(), 'outputs', 'logs', 'reviews');
 
 function parseRepo(fullName: string): { owner: string; repo: string } {
   const [owner, repo] = fullName.split('/');
@@ -47,12 +51,297 @@ function isResolvedState(pr: PR): boolean {
   return pr.review_status === 'reviewed' && resolvedComments > 0 && pr.unresolved_count === 0;
 }
 
+function parseRunMetadata(raw: string | null): Record<string, unknown> | null {
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed as Record<string, unknown>;
+    }
+  } catch {
+    // Ignore malformed or legacy metadata payloads.
+  }
+
+  return null;
+}
+
+function extractLastJsonObject(content: string): Record<string, unknown> | null {
+  const candidateStarts: number[] = [];
+  for (let i = 0; i < content.length; i++) {
+    if (content[i] === '{' && (i === 0 || content[i - 1] === '\n')) {
+      candidateStarts.push(i);
+    }
+  }
+
+  for (let i = candidateStarts.length - 1; i >= 0; i--) {
+    const candidateStart = candidateStarts[i];
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+
+    for (let cursor = candidateStart; cursor < content.length; cursor++) {
+      const ch = content[cursor];
+
+      if (inString) {
+        if (escaped) {
+          escaped = false;
+        } else if (ch === '\\') {
+          escaped = true;
+        } else if (ch === '"') {
+          inString = false;
+        }
+        continue;
+      }
+
+      if (ch === '"') {
+        inString = true;
+        continue;
+      }
+
+      if (ch === '{') {
+        depth++;
+        continue;
+      }
+
+      if (ch !== '}') {
+        continue;
+      }
+
+      depth--;
+      if (depth !== 0) {
+        continue;
+      }
+
+      try {
+        const parsed = JSON.parse(content.slice(candidateStart, cursor + 1)) as unknown;
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          return parsed as Record<string, unknown>;
+        }
+      } catch {
+        break;
+      }
+
+      break;
+    }
+  }
+
+  return null;
+}
+
+function readMetadataString(metadata: Record<string, unknown> | null, key: string): string | null {
+  if (!metadata) {
+    return null;
+  }
+  const value = metadata[key];
+  return typeof value === 'string' && value.trim() ? value : null;
+}
+
+function readMetadataObject(metadata: Record<string, unknown> | null, key: string): Record<string, unknown> | null {
+  if (!metadata) {
+    return null;
+  }
+  const value = metadata[key];
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function normalizeTriageReport(report: Record<string, unknown> | null): Record<string, unknown> | null {
+  if (!report) {
+    return null;
+  }
+
+  const findings = Array.isArray(report.findings)
+    ? report.findings.filter((item): item is Record<string, unknown> => !!item && typeof item === 'object' && !Array.isArray(item))
+    : [];
+  const rawChecks = Array.isArray(report.failing_checks)
+    ? report.failing_checks.filter((item): item is Record<string, unknown> => !!item && typeof item === 'object' && !Array.isArray(item))
+    : [];
+
+  const findingBySignature = new Map<string, Record<string, unknown>>();
+  const findingByCheck = new Map<string, Record<string, unknown>>();
+
+  for (const finding of findings) {
+    const signatureId = typeof finding.signature_id === 'string' ? finding.signature_id : null;
+    if (signatureId) {
+      findingBySignature.set(signatureId, finding);
+      const checkName = signatureId.split(' :: ')[0]?.trim();
+      if (checkName && !findingByCheck.has(checkName)) {
+        findingByCheck.set(checkName, finding);
+      }
+    }
+
+    const checkName = typeof finding.check_name === 'string' ? finding.check_name.trim() : '';
+    if (checkName && !findingByCheck.has(checkName)) {
+      findingByCheck.set(checkName, finding);
+    }
+  }
+
+  const normalizedChecks = rawChecks.length > 0
+    ? rawChecks.map((check) => {
+        const signatureId = typeof check.signature_id === 'string' ? check.signature_id : null;
+        const checkName = typeof check.check_name === 'string' ? check.check_name.trim() : '';
+        const matchedFinding = (signatureId && findingBySignature.get(signatureId))
+          || (checkName && findingByCheck.get(checkName))
+          || null;
+        return matchedFinding ? { ...matchedFinding, ...check } : check;
+      })
+    : findings.map((finding) => ({ ...finding }));
+
+  return {
+    ...report,
+    failing_checks: normalizedChecks,
+  };
+}
+
+function renderTriageReportMarkdown(report: Record<string, unknown>): string {
+  const normalized = normalizeTriageReport(report) || report;
+  const summary = typeof normalized.summary === 'string' ? normalized.summary.trim() : '';
+  const checks = Array.isArray(normalized.failing_checks) ? normalized.failing_checks : [];
+
+  const lines = ['## CI Failure Triage Report', ''];
+  if (summary) {
+    lines.push(summary, '');
+  }
+
+  if (checks.length > 0) {
+    lines.push('| Check | Classification | Decision Confidence | Fix Recommendation | Signature |');
+    lines.push('| --- | --- | --- | --- | --- |');
+
+    for (const rawCheck of checks) {
+      const check = rawCheck && typeof rawCheck === 'object' ? rawCheck as Record<string, unknown> : {};
+      const checkName = typeof check.check_name === 'string' ? check.check_name : '-';
+      const category = typeof check.category === 'string'
+        ? check.category
+        : typeof check.classification === 'string' ? check.classification : 'needs_more_evidence';
+      const confidence = typeof check.confidence === 'string' ? check.confidence : '-';
+      const recommendedToFix = typeof check.recommended_to_fix === 'boolean' ? check.recommended_to_fix : null;
+      const fixPriority = typeof check.fix_priority === 'string' ? check.fix_priority : null;
+      const fixRecommendation = recommendedToFix == null
+        ? '-'
+        : recommendedToFix
+          ? `recommend fix${fixPriority ? ` (${fixPriority})` : ''}`
+          : (fixPriority || 'observe');
+      const signature = typeof check.signature_id === 'string'
+        ? check.signature_id
+        : typeof check.signature === 'string' ? check.signature : '-';
+      const checkCell = typeof check.url === 'string'
+        ? `[\`${checkName}\`](${check.url})`
+        : `\`${checkName}\``;
+
+      lines.push(`| ${checkCell} | \`${category}\` | ${confidence} | ${fixRecommendation} | \`${signature}\` |`);
+      if (typeof check.fix_reason === 'string' && check.fix_reason.trim()) {
+        lines.push('');
+        lines.push(`Fix note for \`${checkName}\`: ${check.fix_reason.trim()}`);
+        lines.push('');
+      }
+    }
+    lines.push('');
+  } else {
+    lines.push('No failing checks were captured in the triage payload.', '');
+  }
+
+  lines.push('*Generated by RaaS CI Triage. Report only, no actions taken.*');
+  return lines.join('\n');
+}
+
+function getRunLogFallback(repo: string, prNumber: number, runType: string, startedAt: string | null): Record<string, unknown> | null {
+  if (!fs.existsSync(REVIEW_LOGS_DIR)) {
+    return null;
+  }
+
+  const prefix = `${repo.replace('/', '_')}_${prNumber}_${runType}_`;
+  const candidates = fs.readdirSync(REVIEW_LOGS_DIR)
+    .filter((name) => name.startsWith(prefix) && name.endsWith('.log'))
+    .map((name) => {
+      const filePath = path.join(REVIEW_LOGS_DIR, name);
+      const stat = fs.statSync(filePath);
+      return { name, filePath, mtimeMs: stat.mtimeMs };
+    });
+
+  if (candidates.length === 0) {
+    return null;
+  }
+
+  let selected = candidates.sort((a, b) => b.mtimeMs - a.mtimeMs)[0];
+  if (startedAt) {
+    const startedMs = Date.parse(startedAt);
+    if (Number.isFinite(startedMs)) {
+      selected = candidates.reduce((best, candidate) => {
+        const bestDelta = Math.abs(best.mtimeMs - startedMs);
+        const currentDelta = Math.abs(candidate.mtimeMs - startedMs);
+        return currentDelta < bestDelta ? candidate : best;
+      }, selected);
+    }
+  }
+
+  try {
+    const content = fs.readFileSync(selected.filePath, 'utf-8');
+    const payload = extractLastJsonObject(content);
+    const report = payload?.report && typeof payload.report === 'object' && !Array.isArray(payload.report)
+      ? payload.report as Record<string, unknown>
+      : null;
+    return {
+      log_file: selected.name,
+      head_sha: payload?.pr && typeof payload.pr === 'object' && !Array.isArray(payload.pr) && typeof (payload.pr as { head_sha?: unknown }).head_sha === 'string'
+        ? (payload.pr as { head_sha: string }).head_sha
+        : null,
+      skill: typeof payload?.skill === 'string' ? payload.skill : null,
+      triage_report: normalizeTriageReport(report),
+      report_summary: typeof report?.summary === 'string' ? report.summary : null,
+      comment_url: typeof report?.comment_url === 'string' ? report.comment_url : null,
+    };
+  } catch {
+    return { log_file: selected.name };
+  }
+}
+
+function serializeRun(
+  run: { id: number; pr_id: number; type: string; status: string; trigger_reason: string | null; metadata: string | null; started_at: string | null; completed_at: string | null; duration_ms: number | null; exit_code: number | null; error: string | null; },
+  context?: { repo: string; number: number },
+) {
+  const metadata = parseRunMetadata(run.metadata) || {};
+  if (context) {
+    const fallback = getRunLogFallback(context.repo, context.number, run.type, run.started_at);
+    if (fallback) {
+      Object.entries(fallback).forEach(([key, value]) => {
+        if ((metadata as Record<string, unknown>)[key] == null && value != null) {
+          (metadata as Record<string, unknown>)[key] = value;
+        }
+      });
+    }
+  }
+
+  return {
+    ...run,
+    metadata,
+    summary: readMetadataString(metadata, 'report_summary'),
+    comment_url: readMetadataString(metadata, 'comment_url'),
+    log_file: readMetadataString(metadata, 'log_file'),
+    skill: readMetadataString(metadata, 'skill'),
+    head_sha: readMetadataString(metadata, 'head_sha'),
+    triage_report: normalizeTriageReport(readMetadataObject(metadata, 'triage_report')),
+  };
+}
+
 function getManualTriggerState(storage: Storage, pr: PR): { available: boolean; reason: string } {
   if (!isTidbRepo(pr.repo)) {
     return { available: false, reason: 'Only available for pingcap/tidb.' };
   }
   if (pr.state !== 'open') {
     return { available: false, reason: `PR is ${pr.state}.` };
+  }
+  const activeRun = storage.getActiveReviewRun(pr.id);
+  if (activeRun) {
+    return {
+      available: false,
+      reason: activeRun.type === 'ci-triage'
+        ? `CI triage is already ${activeRun.status === 'pending' ? 'queued' : 'running'}.`
+        : 'Review is already running.',
+    };
   }
   if (pr.review_status === 'reviewing') {
     return { available: false, reason: 'Review is already running.' };
@@ -75,15 +364,56 @@ function getManualTriggerState(storage: Storage, pr: PR): { available: boolean; 
   return { available: true, reason: 'Resolved PR can trigger a recheck review after current TiDB CI passes.' };
 }
 
+function getCITriageState(storage: Storage, pr: PR): { available: boolean; reason: string } {
+  if (!isTidbRepo(pr.repo)) {
+    return { available: false, reason: 'Only available for pingcap/tidb.' };
+  }
+  if (pr.state !== 'open') {
+    return { available: false, reason: `PR is ${pr.state}.` };
+  }
+
+  const activeRun = storage.getActiveReviewRun(pr.id);
+  if (activeRun && activeRun.type === 'ci-triage' && ACTIVE_RUN_STATUSES.has(activeRun.status)) {
+    return {
+      available: false,
+      reason: `CI triage is already ${activeRun.status === 'pending' ? 'queued' : 'running'}.`,
+    };
+  }
+  if (activeRun) {
+    return { available: false, reason: 'Another review is already running.' };
+  }
+  if (pr.review_status !== 'approved') {
+    return { available: false, reason: `PR is not in approved state (current: ${pr.review_status}).` };
+  }
+  if (storage.hasTriageRunForSha(pr.id, pr.head_sha)) {
+    return { available: false, reason: 'CI triage already ran for this commit.' };
+  }
+
+  return { available: true, reason: 'Approved PR can trigger CI triage.' };
+}
+
 function serializePR(storage: Storage, pr: PR) {
   const manualTrigger = getManualTriggerState(storage, pr);
-  const displayReviewStatus = isResolvedState(pr) ? 'resolved' : pr.review_status;
+  const ciTriage = getCITriageState(storage, pr);
+  const activeRun = storage.getActiveReviewRun(pr.id);
+  const latestRun = storage.getLatestReviewRun(pr.id);
+  const latestCITriage = storage.getLatestReviewRunByType(pr.id, 'ci-triage');
+  const displayReviewStatus = activeRun?.status === 'running'
+    ? 'reviewing'
+    : activeRun?.status === 'pending'
+      ? 'pending'
+      : isResolvedState(pr) ? 'resolved' : pr.review_status;
 
   return {
     ...pr,
     review_status: displayReviewStatus,
     manual_trigger_available: manualTrigger.available,
     manual_trigger_reason: manualTrigger.reason,
+    ci_triage_available: ciTriage.available,
+    ci_triage_reason: ciTriage.reason,
+    active_run: activeRun ? serializeRun(activeRun, { repo: pr.repo, number: pr.number }) : null,
+    latest_run: latestRun ? serializeRun(latestRun, { repo: pr.repo, number: pr.number }) : null,
+    latest_ci_triage: latestCITriage ? serializeRun(latestCITriage, { repo: pr.repo, number: pr.number }) : null,
   };
 }
 
@@ -103,7 +433,49 @@ export function registerDashboard(
   });
   app.get('/api/prs/:id/runs', (c) => {
     const id = Number(c.req.param('id'));
-    return c.json(storage.getReviewRuns(id));
+    const pr = storage.getPRById(id);
+    if (!pr) {
+      return c.json({ ok: false, error: 'PR not found.' }, 404);
+    }
+    return c.json(storage.getReviewRuns(id).map((run) => serializeRun(run, { repo: pr.repo, number: pr.number })));
+  });
+  app.post('/api/prs/:id/triage-comment', async (c) => {
+    const id = Number(c.req.param('id'));
+    const pr = storage.getPRById(id);
+    if (!pr) {
+      return c.json({ ok: false, error: 'PR not found.' }, 404);
+    }
+
+    const latestTriage = storage.getLatestReviewRunByType(pr.id, 'ci-triage');
+    if (!latestTriage) {
+      return c.json({ ok: false, error: 'No CI triage run found for this PR.' }, 409);
+    }
+
+    const serialized = serializeRun(latestTriage, { repo: pr.repo, number: pr.number });
+    if (!serialized.triage_report) {
+      return c.json({ ok: false, error: 'Latest CI triage run has no report payload.' }, 409);
+    }
+    if (serialized.comment_url) {
+      return c.json({
+        ok: false,
+        error: 'CI triage report was already commented.',
+        comment_url: serialized.comment_url,
+      }, 409);
+    }
+
+    const { owner, repo } = parseRepo(pr.repo);
+    const comment = await github.createPRComment(owner, repo, pr.number, renderTriageReportMarkdown(serialized.triage_report));
+
+    const metadata = parseRunMetadata(latestTriage.metadata) || {};
+    metadata.comment_url = comment.url;
+    storage.updateReviewRun(latestTriage.id, { metadata: JSON.stringify(metadata) });
+
+    return c.json({
+      ok: true,
+      message: 'CI triage report commented on GitHub.',
+      comment_url: comment.url,
+      pr: serializePR(storage, pr),
+    });
   });
   app.post('/api/manual-prs', async (c) => {
     const body = await c.req.json<{ value?: string }>().catch(() => null);
@@ -296,17 +668,22 @@ export function registerDashboard(
       return c.json({ ok: false, error: `PR is ${pr.state}.` }, 409);
     }
 
-    if (pr.review_status !== 'approved') {
-      return c.json({ ok: false, error: `PR is not in approved state (current: ${pr.review_status}).` }, 409);
-    }
-
-    // Throttle: one triage per SHA
-    if (storage.hasTriageRunForSha(pr.id, pr.head_sha)) {
-      return c.json({ ok: false, error: 'Triage already run for this SHA.' }, 409);
+    const ciTriage = getCITriageState(storage, pr);
+    if (!ciTriage.available) {
+      return c.json({
+        ok: false,
+        error: ciTriage.reason,
+        pr: serializePR(storage, pr),
+      }, 409);
     }
 
     storage.updatePRStatus(pr.id, 'pending');
-    const runId = storage.createReviewRun(pr.id, 'ci-triage', 'Manual CI triage from dashboard');
+    const runId = storage.createReviewRun(
+      pr.id,
+      'ci-triage',
+      'Manual CI triage from dashboard',
+      JSON.stringify({ head_sha: pr.head_sha }),
+    );
 
     console.log(`[dashboard] CI triage: ${pr.repo}#${pr.number} queued for ci-triage (run ${runId})`);
 
@@ -334,4 +711,3 @@ export function registerDashboard(
   // Serve static dashboard files (after API routes so /api/* takes priority)
   app.use('/*', serveStatic({ root: './public' }));
 }
-
