@@ -71,6 +71,7 @@ export interface UpsertPRInput {
 
 export interface ReviewRunUpdate {
   status?: string;
+  metadata?: string;
   started_at?: string;
   completed_at?: string;
   duration_ms?: number;
@@ -91,6 +92,9 @@ export interface Storage {
   createReviewRun(prId: number, type: string, triggerReason: string, metadata?: string): number;
   updateReviewRun(id: number, updates: ReviewRunUpdate): void;
   getReviewRuns(prId: number): ReviewRun[];
+  getLatestReviewRun(prId: number): ReviewRun | undefined;
+  getLatestReviewRunByType(prId: number, type: string): ReviewRun | undefined;
+  getActiveReviewRun(prId: number): ReviewRun | undefined;
   hasPrimaryReviewRun(prId: number): boolean;
   hasTriageRunForSha(prId: number, headSha: string): boolean;
   getPendingReviewRuns(): PendingReviewRun[];
@@ -197,6 +201,20 @@ class SQLiteStorage implements Storage {
     return this.database.prepare('SELECT * FROM review_runs WHERE pr_id = ? ORDER BY id DESC').all(prId) as ReviewRun[];
   }
 
+  getLatestReviewRun(prId: number): ReviewRun | undefined {
+    return this.database.prepare('SELECT * FROM review_runs WHERE pr_id = ? ORDER BY id DESC LIMIT 1').get(prId) as ReviewRun | undefined;
+  }
+
+  getLatestReviewRunByType(prId: number, type: string): ReviewRun | undefined {
+    return this.database.prepare('SELECT * FROM review_runs WHERE pr_id = ? AND type = ? ORDER BY id DESC LIMIT 1').get(prId, type) as ReviewRun | undefined;
+  }
+
+  getActiveReviewRun(prId: number): ReviewRun | undefined {
+    return this.database.prepare(
+      "SELECT * FROM review_runs WHERE pr_id = ? AND status IN ('pending', 'running') ORDER BY id DESC LIMIT 1",
+    ).get(prId) as ReviewRun | undefined;
+  }
+
   hasPrimaryReviewRun(prId: number): boolean {
     const row = this.database.prepare(
       "SELECT 1 as found FROM review_runs WHERE pr_id = ? AND type IN ('initial', 'recheck') LIMIT 1",
@@ -205,13 +223,28 @@ class SQLiteStorage implements Storage {
   }
 
   hasTriageRunForSha(prId: number, headSha: string): boolean {
-    const row = this.database.prepare(
-      `SELECT 1 as found FROM review_runs r
-       JOIN prs p ON r.pr_id = p.id
-       WHERE r.pr_id = ? AND r.type = 'ci-triage' AND p.head_sha = ?
-       LIMIT 1`,
-    ).get(prId, headSha) as { found: number } | undefined;
-    return Boolean(row?.found);
+    const rows = this.database.prepare(
+      "SELECT status, metadata FROM review_runs WHERE pr_id = ? AND type = 'ci-triage' ORDER BY id DESC",
+    ).all(prId) as Array<{ status: string; metadata: string | null }>;
+
+    let hasLegacyTriageRun = false;
+    for (const row of rows) {
+      if (!row.metadata) {
+        hasLegacyTriageRun = true;
+        continue;
+      }
+
+      try {
+        const parsed = JSON.parse(row.metadata) as unknown;
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && (parsed as { head_sha?: unknown }).head_sha === headSha) {
+          return true;
+        }
+      } catch {
+        hasLegacyTriageRun = true;
+      }
+    }
+
+    return hasLegacyTriageRun && rows.some((row) => row.status === 'pending' || row.status === 'running');
   }
 
   getPendingReviewRuns(): PendingReviewRun[] {
@@ -248,10 +281,10 @@ class SQLiteStorage implements Storage {
       SELECT
         COUNT(*) as total_prs,
         SUM(CASE WHEN state = 'open' THEN 1 ELSE 0 END) as open_prs,
-        SUM(CASE WHEN review_status = 'pending' THEN 1 ELSE 0 END) as pending_reviews,
-        SUM(CASE WHEN review_status = 'reviewing' THEN 1 ELSE 0 END) as reviewing,
-        SUM(comment_count) as total_comments,
-        SUM(unresolved_count) as total_unresolved
+        SUM(CASE WHEN state = 'open' AND review_status = 'pending' THEN 1 ELSE 0 END) as pending_reviews,
+        SUM(CASE WHEN state = 'open' AND review_status = 'reviewing' THEN 1 ELSE 0 END) as reviewing,
+        SUM(CASE WHEN state = 'open' THEN comment_count ELSE 0 END) as total_comments,
+        SUM(CASE WHEN state = 'open' THEN unresolved_count ELSE 0 END) as total_unresolved
       FROM prs
     `).get() as Partial<Stats>;
 
